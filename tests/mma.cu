@@ -42,7 +42,7 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
 	// Store D
-	mtk::wmma::store_matrix_sync(frag_d, smem, N, nvcuda::wmma::mem_col_major);
+	mtk::wmma::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::mem_col_major);
 	for (unsigned i = 0; i < N * N; i += warp_size) {
 		d_ptr[i + threadIdx.x] = smem[i + threadIdx.x];
 	}
