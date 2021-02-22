@@ -129,7 +129,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::w
 }
 
 template <class Use, int m, int n, int k, class T>
-__device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<float>(), 16, 16>();
 
@@ -178,6 +178,61 @@ __device__ void mma_sync(
 					frag_a.sub_d_frag[bm + 0  * num_m_block],
 					frag_b.sub_frag  [0  + bn * num_n_block],
 					frag_c.sub_d_frag[bm + bn * num_m_block]
+					);
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_d_frag[bm + bn * num_m_block],
+					frag_a.sub_frag  [bm + 0  * num_m_block],
+					frag_b.sub_d_frag[0  + bn * num_n_block],
+					frag_d.sub_d_frag[bm + bn * num_m_block]
+					);
+			for (unsigned bk = 1; bk < num_k_block; bk++) {
+				nvcuda::wmma::mma_sync(
+						frag_d.sub_frag[bm + bn * num_m_block],
+						frag_a.sub_frag[bm + bk * num_m_block],
+						frag_b.sub_frag[bk + bn * num_n_block],
+						frag_d.sub_frag[bm + bn * num_m_block]
+						);
+				nvcuda::wmma::mma_sync(
+						frag_d.sub_d_frag[bm + bn * num_m_block],
+						frag_a.sub_d_frag[bm + bk * num_m_block],
+						frag_b.sub_frag  [bk + bn * num_n_block],
+						frag_d.sub_d_frag[bm + bn * num_m_block]
+						);
+				nvcuda::wmma::mma_sync(
+						frag_d.sub_d_frag[bm + bn * num_m_block],
+						frag_a.sub_frag  [bm + bk * num_m_block],
+						frag_b.sub_d_frag[bk + bn * num_n_block],
+						frag_d.sub_d_frag[bm + bn * num_m_block]
+						);
+			}
+		}
+	}
+}
+
+template <int m, int n, int k, class A_Layout, class B_Layout, class T>
+__device__ void mma_sync(
+		mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
+		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout>& frag_a,
+		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout>& frag_b) {
+	constexpr unsigned num_m_block = frag_d.num_sub_frag_m;
+	constexpr unsigned num_n_block = frag_d.num_sub_frag_n;
+	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
+
+	for (unsigned bm = 0; bm < num_m_block; bm++) {
+		for (unsigned bn = 0; bn < num_n_block; bn++) {
+			mtk::wmma::fill_zero(frag_d.sub_frag[bm + bn * num_m_block]);
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_frag[bm + bn * num_m_block],
+					frag_a.sub_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag[0  + bn * num_n_block],
+					frag_d.sub_frag[bm + bn * num_m_block]
+					);
+			mtk::wmma::fill_zero(frag_d.sub_d_frag[bm + bn * num_m_block]);
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_d_frag[bm + bn * num_m_block],
+					frag_a.sub_d_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag  [0  + bn * num_n_block],
+					frag_d.sub_d_frag[bm + bn * num_m_block]
 					);
 			nvcuda::wmma::mma_sync(
 					frag_d.sub_d_frag[bm + bn * num_m_block],
