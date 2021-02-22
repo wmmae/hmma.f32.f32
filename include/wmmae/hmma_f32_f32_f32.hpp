@@ -129,7 +129,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::w
 }
 
 template <class Use, int m, int n, int k, class T>
-__device__ void store_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, T>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<float>(), 16, 16>();
 
@@ -137,11 +137,11 @@ __device__ void store_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, T>& frag
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 			if constexpr (std::is_same<T, half>::value) {
 				for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
-					frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] += frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] / 1024;
+					frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] += frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] / 1024;
 				}
 			} else {
 				for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
-					frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] += frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index];
+					frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] += frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index];
 				}
 			}
 			unsigned mem_offset;
@@ -150,7 +150,7 @@ __device__ void store_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, T>& frag
 			} else {
 				mem_offset = detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>(0, ldm, bm * frag_m, bn * frag_n);
 			}
-			nvcuda::wmma::load_matrix_sync(frag.sub_frag[bm + frag.num_sub_frag_m * bn], ptr + mem_offset, ldm, layout);
+			nvcuda::wmma::store_matrix_sync(ptr + mem_offset, frag.sub_frag[bm + frag.num_sub_frag_m * bn], ldm, layout);
 		}
 	}
 }
