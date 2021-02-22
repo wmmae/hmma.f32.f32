@@ -167,24 +167,42 @@ __device__ void mma_sync(
 
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
-			for (unsigned bk = 0; bk < num_k_block; bk++) {
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_frag[bm + bn * num_m_block],
+					frag_a.sub_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag[0  + bn * num_n_block],
+					frag_c.sub_frag[bm + bn * num_m_block]
+					);
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_d_frag[bm + bn * num_m_block],
+					frag_a.sub_d_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag  [0  + bn * num_n_block],
+					frag_c.sub_d_frag[bm + bn * num_m_block]
+					);
+			nvcuda::wmma::mma_sync(
+					frag_d.sub_d_frag[bm + bn * num_m_block],
+					frag_a.sub_frag  [bm + 0  * num_m_block],
+					frag_b.sub_d_frag[0  + bn * num_n_block],
+					frag_c.sub_d_frag[bm + bn * num_m_block]
+					);
+			for (unsigned bk = 1; bk < num_k_block; bk++) {
 				nvcuda::wmma::mma_sync(
 						frag_d.sub_frag[bm + bn * num_m_block],
 						frag_a.sub_frag[bm + bk * num_m_block],
 						frag_b.sub_frag[bk + bn * num_n_block],
-						frag_c.sub_frag[bm + bn * num_m_block]
+						frag_d.sub_frag[bm + bn * num_m_block]
 						);
 				nvcuda::wmma::mma_sync(
 						frag_d.sub_d_frag[bm + bn * num_m_block],
 						frag_a.sub_d_frag[bm + bk * num_m_block],
 						frag_b.sub_frag  [bk + bn * num_n_block],
-						frag_c.sub_d_frag[bm + bn * num_m_block]
+						frag_d.sub_d_frag[bm + bn * num_m_block]
 						);
 				nvcuda::wmma::mma_sync(
 						frag_d.sub_d_frag[bm + bn * num_m_block],
 						frag_a.sub_frag  [bm + bk * num_m_block],
 						frag_b.sub_d_frag[bk + bn * num_n_block],
-						frag_c.sub_d_frag[bm + bn * num_m_block]
+						frag_d.sub_d_frag[bm + bn * num_m_block]
 						);
 			}
 		}
