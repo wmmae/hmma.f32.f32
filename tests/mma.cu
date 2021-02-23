@@ -138,7 +138,9 @@ void test_mma() {
 
 int main() {
 	test_mma<32, half, true>();
-	test_mma<32, nvcuda::wmma::precision::tf32, true>();
 	test_mma<32, half, false>();
+#ifdef TEST_TF32
+	test_mma<32, nvcuda::wmma::precision::tf32, true>();
 	test_mma<32, nvcuda::wmma::precision::tf32, false>();
+#endif
 }
