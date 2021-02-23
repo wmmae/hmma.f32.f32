@@ -8,7 +8,7 @@ NVCCFLAGS+=-gencode arch=compute_80,code=sm_80
 #NVCCFLAGS+=-gencode arch=compute_75,code=sm_75
 #NVCCFLAGS+=-gencode arch=compute_70,code=sm_70
 
-TARGET=mma.test elementwise.test load_vector.test
+TARGET=mma.test elementwise.test vector.test
 
 all: $(TARGET)
 
