@@ -187,16 +187,17 @@ int main() {
 	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, half, nvcuda::wmma::row_major>();
 	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, half, nvcuda::wmma::row_major>();
 	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major>();
 
+#ifdef TEST_TF32
 	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
 	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
 	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
-
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major>();
 	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
+#endif
 }

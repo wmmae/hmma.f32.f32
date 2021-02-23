@@ -46,5 +46,7 @@ void test_elementwise() {
 
 int main() {
 	test_elementwise<32, half>();
+#ifdef TEST_TF32
 	test_elementwise<32, nvcuda::wmma::precision::tf32>();
+#endif
 }
