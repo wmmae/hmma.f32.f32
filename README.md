@@ -12,6 +12,8 @@ An library for single precision matrix-matrix product using TensorCores and erro
 ## Sample code
 ```cuda
 // sample.cu
+// - Build
+// nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 sample.cu ...
 #include <wmma_extension/hmma_f32_f32.hpp>
 
 template <unsigned N>
@@ -46,10 +48,6 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 	//copy_matrix(d_ptr, N, smem, N, N, N);
 }
 ```
-### Build
-```bash
-nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 ...
-```
 
 ## Fragment
 ```cpp
@@ -70,7 +68,7 @@ It contains arrays of `nvcuda::wmma::fragment`.
 
 - `mtk::wmma::load_vector`
 - `mtk::wmma::store_vector`
-- `mtk::wmma::fillzero`
+- `mtk::wmma::fill_zero`
 
 ## Lisence
 MIT
