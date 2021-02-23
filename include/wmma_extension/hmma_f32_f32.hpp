@@ -1,5 +1,6 @@
 #ifndef __MTK_HMMA_F32_F32_HPP__
 #define __MTK_HMMA_F32_F32_HPP__
+#include <mma.h>
 #include <type_traits>
 #include <cuda_fp16.h>
 #include "detail/wmma_extension/include/wmma_extension/wmma_extension.hpp"
@@ -40,11 +41,24 @@ struct sub_frag_t<nvcuda::wmma::accumulator, nvcuda::wmma::precision::tf32> {usi
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
 struct fragment_f32 {
+	using sub_frag_t = nvcuda::wmma::fragment<Use, 16, 16, detail::get_fragment_k<T>(), typename detail::sub_frag_t<Use, T>::type, Layout>;
 	static constexpr int num_sub_frag_m = detail::select_value<Use, m, k, m>() / detail::select_value<Use, 16, detail::get_fragment_k<T>(), 16>();
 	static constexpr int num_sub_frag_n = detail::select_value<Use, k, n, n>() / detail::select_value<Use, detail::get_fragment_k<T>(), 16, 16>();
 
-	nvcuda::wmma::fragment<Use, 16, 16, detail::get_fragment_k<T>(), typename detail::sub_frag_t<Use, T>::type, Layout> sub_frag  [num_sub_frag_m * num_sub_frag_n];
-	nvcuda::wmma::fragment<Use, 16, 16, detail::get_fragment_k<T>(), typename detail::sub_frag_t<Use, T>::type, Layout> sub_d_frag[num_sub_frag_m * num_sub_frag_n];
+	sub_frag_t sub_frag  [num_sub_frag_m * num_sub_frag_n];
+	sub_frag_t sub_d_frag[num_sub_frag_m * num_sub_frag_n];
+
+	static const unsigned num_elements = num_sub_frag_m * num_sub_frag_m * sub_frag_t::num_elements;
+	typename mtk::wmma::detail::common::storage_t<T>::type& x(const unsigned index) {
+		const auto frag_index = index % sub_frag_t::num_elements;
+		const auto sub_frag_id = index / sub_frag_t::num_elements;
+		return sub_frag[sub_frag_id].x[frag_index];
+	}
+	typename mtk::wmma::detail::common::storage_t<T>::type& dx(const unsigned index) {
+		const auto frag_index = index % sub_frag_t::num_elements;
+		const auto sub_frag_id = index / sub_frag_t::num_elements;
+		return sub_d_frag[sub_frag_id].x[frag_index];
+	}
 };
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
