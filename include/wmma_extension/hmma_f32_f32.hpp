@@ -1,5 +1,5 @@
-#ifndef __MTK_HMMA_F32_F32_F32_HPP__
-#define __MTK_HMMA_F32_F32_F32_HPP__
+#ifndef __MTK_HMMA_F32_F32_HPP__
+#define __MTK_HMMA_F32_F32_HPP__
 #include <type_traits>
 #include <cuda_fp16.h>
 #include "detail/wmma_extension/include/wmma_extension/wmma_extension.hpp"
