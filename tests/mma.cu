@@ -9,31 +9,48 @@ template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "
 
 constexpr unsigned warp_size = 32;
 
+__device__ void copy_matrix(
+		float* const dst, const unsigned ldd,
+		const float* const src, const unsigned lds,
+		const unsigned m, const unsigned n) {
+	for (unsigned i = 0; i < m * n; i += warp_size) {
+		const auto j = i + threadIdx.x;
+		if (j >= m * n) return;
+		const auto mm = j % m;
+		const auto mn = j / m;
+		dst[mm + mn * ldd] = src[mm + mn * lds];
+	}
+}
+
+__device__ void fill_zero(float* const dst, const unsigned size) {
+	for (unsigned i = 0; i < size; i += warp_size) {
+		const auto j = i + threadIdx.x;
+		if (j >= size) return;
+		dst[j] = 0.0f;
+	}
+}
+
 template <unsigned N, class T>
 __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
-	__shared__ float smem[N * N];
+	constexpr unsigned LD = 2 * N + 1;
+	__shared__ float smem[N * LD];
+	fill_zero(smem, N * LD);
 
 	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, T, nvcuda::wmma::col_major> frag_a;
 	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, T, nvcuda::wmma::col_major> frag_b;
 	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T> frag_c, frag_d;
 
 	// Load A
-	for (unsigned i = 0; i < N * N; i += warp_size) {
-		smem[i + threadIdx.x] = a_ptr[i + threadIdx.x];
-	}
-	mtk::wmma::load_matrix_sync(frag_a, smem, N);
+	copy_matrix(smem, LD, a_ptr, N, N, N);
+	mtk::wmma::load_matrix_sync(frag_a, smem, LD);
 
 	// Load B
-	for (unsigned i = 0; i < N * N; i += warp_size) {
-		smem[i + threadIdx.x] = b_ptr[i + threadIdx.x];
-	}
-	mtk::wmma::load_matrix_sync(frag_b, smem, N);
+	copy_matrix(smem, LD, b_ptr, N, N, N);
+	mtk::wmma::load_matrix_sync(frag_b, smem, LD);
 
 	// Load C
-	for (unsigned i = 0; i < N * N; i += warp_size) {
-		smem[i + threadIdx.x] = c_ptr[i + threadIdx.x];
-	}
-	mtk::wmma::load_matrix_sync(frag_c, smem, N, nvcuda::wmma::mem_col_major);
+	copy_matrix(smem, LD, c_ptr, N, N, N);
+	mtk::wmma::load_matrix_sync(frag_c, smem, LD, nvcuda::wmma::mem_col_major);
 
 	// Fill D
 	mtk::wmma::fill_fragment(frag_d, 0.0f);
@@ -42,10 +59,8 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
 	// Store D
-	mtk::wmma::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::mem_col_major);
-	for (unsigned i = 0; i < N * N; i += warp_size) {
-		d_ptr[i + threadIdx.x] = smem[i + threadIdx.x];
-	}
+	mtk::wmma::store_matrix_sync(smem, frag_d, LD, nvcuda::wmma::mem_col_major);
+	copy_matrix(d_ptr, N, smem, LD, N, N);
 }
 
 template <unsigned N, class T>
@@ -83,7 +98,7 @@ void test_mma() {
 		}
 	}
 
-	std::printf("[%3u,%4s] error = %e\n", N, get_type_name<T>().c_str(), max_error);
+	std::printf("[N = %2u, T = %4s] error = %e\n", N, get_type_name<T>().c_str(), max_error);
 
 	cudaFreeHost(hA);
 	cudaFreeHost(hB);
