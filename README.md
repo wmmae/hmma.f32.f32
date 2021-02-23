@@ -5,7 +5,7 @@ An library for single precision matrix-matrix product using TensorCores and erro
 ## Requirements
 - CUDA
   - CUDA >= 10.0 for HMMA-FP16
-  - CUDA >= 11.1 for HMMA-TF16
+  - CUDA >= 11.1 for HMMA-TF32
 
 - C++ >= 17
 
@@ -51,7 +51,7 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 ...
 ```
 
-### fragment
+## Fragment
 ```cpp
 template <class Use, int m, int n, int k, class T, class Layout = void>
 struct fragment_f32;
@@ -61,6 +61,16 @@ It contains arrays of `nvcuda::wmma::fragment`.
 - `m` and `n` has to be a multiple of 16.
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
+
+## Functions
+- `mtk::wmma::fill_fragment`
+- `mtk::wmma::load_matrix_sync`
+- `mtk::wmma::store_matrix_sync`
+- `mtk::wmma::mma_sync`
+
+- `mtk::wmma::load_vector`
+- `mtk::wmma::store_vector`
+- `mtk::wmma::fillzero`
 
 ## Lisence
 MIT
