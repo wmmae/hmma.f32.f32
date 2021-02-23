@@ -1,6 +1,6 @@
 #include <iostream>
 #include <random>
-#include <wmmae/hmma_f32_f32_f32.hpp>
+#include <wmma_extension/hmma_f32_f32.hpp>
 
 template <class T>
 std::string get_type_name();
