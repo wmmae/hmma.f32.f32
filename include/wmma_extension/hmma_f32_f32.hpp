@@ -79,6 +79,16 @@ __device__ void fill_fragment(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& 
 	}
 }
 
+template <class Use, int m, int n, int k, class T, class Layout = void>
+__device__ void fill_zero(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& frag) {
+	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+			mtk::wmma::fill_zero(frag.sub_frag  [bm + frag.num_sub_frag_m * bn]);
+			mtk::wmma::fill_zero(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn]);
+		}
+	}
+}
+
 // Load matrix
 template <int m, int n, int k, class T>
 __device__ void load_matrix_sync(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
