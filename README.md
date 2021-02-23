@@ -1,6 +1,6 @@
 # WMMA Extension for single precision matmul
 
-An library for single precision matrix-matrix product using TensorCores and error correction technique
+An extension library library of WMMA API for single precision matrix-matrix product using TensorCores and error correction technique
 
 ## Requirements
 - CUDA
