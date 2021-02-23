@@ -37,6 +37,14 @@ template <>
 struct sub_frag_t<nvcuda::wmma::accumulator, half                         > {using type = float;};
 template <>
 struct sub_frag_t<nvcuda::wmma::accumulator, nvcuda::wmma::precision::tf32> {using type = float;};
+
+template <class Layout, int a, int b>
+__device__ constexpr int layout_switch() {
+	if constexpr (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
+		return a;
+	}
+	return b;
+}
 } // detail
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
@@ -71,6 +79,7 @@ __device__ void fill_fragment(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& 
 	}
 }
 
+// Load matrix
 template <int m, int n, int k, class T>
 __device__ void load_matrix_sync(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = detail::select_value<nvcuda::wmma::accumulator, 16, detail::get_fragment_k<float>(), 16>();
@@ -142,6 +151,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::w
 			});
 }
 
+// Store matrix
 template <class Use, int m, int n, int k, class T>
 __device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<float>(), 16>();
@@ -169,6 +179,139 @@ __device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use,
 	}
 }
 
+// Load vector
+template <int m, int n, int k, class T>
+__device__ void load_vector(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
+	constexpr auto frag_m = detail::select_value<nvcuda::wmma::accumulator, 16, detail::get_fragment_k<float>(), 16>();
+	constexpr auto frag_n = detail::select_value<nvcuda::wmma::accumulator, detail::get_fragment_k<float>(), 16, 16>();
+
+	if (layout == nvcuda::wmma::mem_col_major) {
+		for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+			mtk::wmma::load_vector(frag.sub_frag[bm], ptr + bm * frag_m, layout);
+		}
+	} else {
+		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+			mtk::wmma::load_vector(frag.sub_frag[bn * frag.num_sub_frag_m], ptr + bn * frag_n, layout);
+		}
+	}
+}
+
+template <class Use, int m, int n, int k, class Layout>
+__device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr) {
+	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<half>(), 16>();
+	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<half>(), 16, 16>();
+
+	constexpr auto num_load_blocks = detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>();
+	constexpr auto block_ld        = detail::layout_switch<Layout, 1, frag.num_sub_frag_m>();
+	constexpr auto vec_per_block   = detail::layout_switch<Layout, frag_m, frag_n>();
+
+	mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+				for (unsigned bn = 0; bn < num_load_blocks; bn++) {
+					const auto mem_offset = mem_index + bn * vec_per_block;
+					const auto v = ptr[mem_offset];
+					const auto hv = mtk::wmma::detail::common::cast<half>(v);
+					const auto dhv = mtk::wmma::detail::common::cast<half>((v - mtk::wmma::detail::common::cast<float>(hv)) * 1024);
+					for (unsigned i = 0; i < frag_index_count; i++) {
+						const auto frag_index = frag_index_list[i];
+						frag.sub_frag  [bn * block_ld].x[frag_index] = hv ;
+						frag.sub_d_frag[bn * block_ld].x[frag_index] = dhv;
+					}
+				}
+			});
+}
+
+template <class Use, int m, int n, int k, class Layout>
+__device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr) {
+	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16>();
+	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16, 16>();
+
+	constexpr auto num_load_blocks = detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>();
+	constexpr auto block_ld        = detail::layout_switch<Layout, 1, frag.num_sub_frag_m>();
+	constexpr auto vec_per_block   = detail::layout_switch<Layout, frag_m, frag_n>();
+
+	mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+				for (unsigned bn = 0; bn < num_load_blocks; bn++) {
+					const auto mem_offset = mem_index + bn * vec_per_block;
+					const auto v = ptr[mem_offset];
+					const auto hv = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(v);
+					const auto dhv = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(v - mtk::wmma::detail::common::cast<float>(hv));
+					for (unsigned i = 0; i < frag_index_count; i++) {
+						const auto frag_index = frag_index_list[i];
+						frag.sub_frag  [bn * block_ld].x[frag_index] = hv ;
+						frag.sub_d_frag[bn * block_ld].x[frag_index] = dhv;
+					}
+				}
+			});
+}
+
+// Store vector
+template <int m, int n, int k>
+__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, half>& frag, const nvcuda::wmma::layout_t layout) {
+	constexpr auto frag_m = detail::select_value<nvcuda::wmma::accumulator, 16, detail::get_fragment_k<float>(), 16>();
+	constexpr auto frag_n = detail::select_value<nvcuda::wmma::accumulator, detail::get_fragment_k<float>(), 16, 16>();
+
+	if (layout == nvcuda::wmma::mem_col_major) {
+		mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(layout,
+				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+						for (unsigned i = 0; i < frag_index_count; i++) {
+							const auto frag_index = frag_index_list[i];
+							const auto hv  = frag.sub_frag  [bm].x[frag_index];
+							const auto dhv = frag.sub_d_frag[bm].x[frag_index];
+							ptr[bm * frag_m + mem_index] = hv + dhv / 1024;
+						}
+					}
+				});
+	} else {
+		mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(layout,
+				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+						for (unsigned i = 0; i < frag_index_count; i++) {
+							const auto frag_index = frag_index_list[i];
+							const auto hv  = frag.sub_frag  [bn * frag.num_sub_frag_m].x[frag_index];
+							const auto dhv = frag.sub_d_frag[bn * frag.num_sub_frag_m].x[frag_index];
+							ptr[bn * frag_n + mem_index] = hv + dhv / 1024;
+						}
+					}
+				});
+	}
+}
+
+template <int m, int n, int k>
+__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, nvcuda::wmma::precision::tf32>& frag, const nvcuda::wmma::layout_t layout) {
+	constexpr auto frag_m = detail::select_value<nvcuda::wmma::accumulator, 16, detail::get_fragment_k<float>(), 16>();
+	constexpr auto frag_n = detail::select_value<nvcuda::wmma::accumulator, detail::get_fragment_k<float>(), 16, 16>();
+
+	if (layout == nvcuda::wmma::mem_col_major) {
+		mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(layout,
+				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+						for (unsigned i = 0; i < frag_index_count; i++) {
+							const auto frag_index = frag_index_list[i];
+							const auto hv  = frag.sub_frag  [bm].x[frag_index];
+							const auto dhv = frag.sub_d_frag[bm].x[frag_index];
+							ptr[bm * frag_m + mem_index] = hv + dhv;
+						}
+					}
+				});
+	} else {
+		mtk::wmma::foreach_v<decltype(frag.sub_frag[0])>(layout,
+				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+						for (unsigned i = 0; i < frag_index_count; i++) {
+							const auto frag_index = frag_index_list[i];
+							const auto hv  = frag.sub_frag  [bn * frag.num_sub_frag_m].x[frag_index];
+							const auto dhv = frag.sub_d_frag[bn * frag.num_sub_frag_m].x[frag_index];
+							ptr[bn * frag_n + mem_index] = hv + dhv;
+						}
+					}
+				});
+	}
+}
+
+// mma
 template <int m, int n, int k, class A_Layout, class B_Layout, class T>
 __device__ void mma_sync(
 		mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
