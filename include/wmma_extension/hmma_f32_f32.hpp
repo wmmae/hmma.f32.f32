@@ -49,12 +49,12 @@ struct fragment_f32 {
 	sub_frag_t sub_d_frag[num_sub_frag_m * num_sub_frag_n];
 
 	static const unsigned num_elements = num_sub_frag_m * num_sub_frag_m * sub_frag_t::num_elements;
-	typename mtk::wmma::detail::common::storage_t<T>::type& x(const unsigned index) {
+	__device__ typename mtk::wmma::detail::common::storage_t<typename detail::sub_frag_t<Use, T>::type>::type& x(const unsigned index) {
 		const auto frag_index = index % sub_frag_t::num_elements;
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_frag[sub_frag_id].x[frag_index];
 	}
-	typename mtk::wmma::detail::common::storage_t<T>::type& dx(const unsigned index) {
+	__device__ typename mtk::wmma::detail::common::storage_t<typename detail::sub_frag_t<Use, T>::type>::type& dx(const unsigned index) {
 		const auto frag_index = index % sub_frag_t::num_elements;
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_d_frag[sub_frag_id].x[frag_index];
