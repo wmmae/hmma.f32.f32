@@ -12,7 +12,7 @@ An library for single precision matrix-matrix product using TensorCores and erro
 ## Sample code
 ```cuda
 // sample.cu
-#include <wmmae/hmma_f32_f32_f32.hpp>
+#include <wmma_extension/hmma_f32_f32.hpp>
 
 template <unsigned N>
 __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
