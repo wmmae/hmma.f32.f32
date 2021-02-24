@@ -56,7 +56,8 @@ struct fragment_f32;
 ```
 `mtk::wmma::fragment_f32` is a fragment for this computation.
 It contains arrays of `nvcuda::wmma::fragment`.
-- `m` and `n` has to be a multiple of 16.
+- `m`, `n` and `k` have to be a multiple of `mtk::wmma::min_fragment_m<T>`, `mtk::wmma::min_fragmnet_n<T>` and `mtk::wmma::min_fragmnet_k<T>` respectively.
+Currently `mtk::wmma::min_fragment_m<T>` and `mtk::wmma::min_fragmnet_n<T>` are 16 and `mtk::wmma::min_fragmnet_n<T>` is 16 for `T` == `half` and 8 for `T` == `nvcuda::wmma::precision::tf32`.
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
 
