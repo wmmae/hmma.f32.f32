@@ -15,7 +15,7 @@ NVCCFLAGS+=-gencode arch=compute_75,code=sm_75
 NVCCFLAGS+=-gencode arch=compute_70,code=sm_70
 endif
 
-TARGET=mma.test elementwise.test vector.test matvec.test
+TARGET=mma.test elementwise.test vector.test matvec.test min_fragment.test
 
 all: $(TARGET)
 
