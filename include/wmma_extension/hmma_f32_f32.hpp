@@ -47,6 +47,20 @@ __device__ constexpr int layout_switch() {
 }
 } // detail
 
+template <class T>
+constexpr unsigned min_fragment_m = 0;
+template <class T>
+constexpr unsigned min_fragment_n = 0;
+template <class T>
+constexpr unsigned min_fragment_k = 0;
+
+template <> constexpr unsigned min_fragment_m<half> = 16;
+template <> constexpr unsigned min_fragment_n<half> = 16;
+template <> constexpr unsigned min_fragment_k<half> = 16;
+template <> constexpr unsigned min_fragment_m<nvcuda::wmma::precision::tf32> = 16;
+template <> constexpr unsigned min_fragment_n<nvcuda::wmma::precision::tf32> = 16;
+template <> constexpr unsigned min_fragment_k<nvcuda::wmma::precision::tf32> =  8;
+
 template <class Use, int m, int n, int k, class T, class Layout = void>
 struct fragment_f32 {
 	using sub_frag_t = nvcuda::wmma::fragment<Use, 16, 16, detail::get_fragment_k<T>(), typename detail::sub_frag_t<Use, T>::type, Layout>;
