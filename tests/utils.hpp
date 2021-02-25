@@ -9,11 +9,6 @@ namespace mtk {
 namespace test_utils {
 
 template <class T>
-std::string get_type_name();
-template <> std::string get_type_name<half>() {return "half";}
-template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "tf32";}
-
-template <class T>
 std::string to_string();
 template <> std::string to_string<nvcuda::wmma::accumulator>    (){return "acc";}
 template <> std::string to_string<nvcuda::wmma::matrix_a>       (){return "matrix_a";}

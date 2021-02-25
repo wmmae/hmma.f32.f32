@@ -102,7 +102,7 @@ void test_mma() {
 		}
 	}
 
-	std::printf("[N = %2u, T = %4s, AddC = %u, Cor = %u] error = %e\n", N, mtk::test_utils::get_type_name<T>().c_str(), (AddC ? 1 : 0), (Cor ? 1 : 0), max_error);
+	std::printf("[N = %2u, T = %4s, AddC = %u, Cor = %u] error = %e\n", N, mtk::test_utils::to_string<T>().c_str(), (AddC ? 1 : 0), (Cor ? 1 : 0), max_error);
 
 	cudaFreeHost(hA);
 	cudaFreeHost(hB);

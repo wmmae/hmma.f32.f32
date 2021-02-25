@@ -1,12 +1,8 @@
 #include <iostream>
 #include <wmma_extension/hmma_f32_f32.hpp>
+#include "utils.hpp"
 
 constexpr unsigned warp_size = 32;
-
-template <class T>
-std::string get_type_name();
-template <> std::string get_type_name<half>() {return "half";}
-template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "tf32";}
 
 template <unsigned N, class T>
 __global__ void test_elementwise_kernel(float* const ptr) {
@@ -29,7 +25,7 @@ __global__ void test_elementwise_kernel(float* const ptr) {
 
 template <unsigned N, class T>
 void test_elementwise() {
-	std::printf("[%s, N = %u, T = %s]\n", __func__, N, get_type_name<T>().c_str());
+	std::printf("[%s, N = %u, T = %s]\n", __func__, N, mtk::test_utils::to_string<T>().c_str());
 	float* hC;
 	cudaMallocHost(&hC, N * N * sizeof(float));
 
