@@ -1,20 +1,7 @@
 #include <iostream>
 #include <type_traits>
 #include <wmma_extension/hmma_f32_f32.hpp>
-
-constexpr unsigned warp_size = 32;
-
-template <class T>
-std::string to_string();
-template <> std::string to_string<nvcuda::wmma::accumulator>    (){return "acc";}
-template <> std::string to_string<nvcuda::wmma::matrix_a>       (){return "matrix_a";}
-template <> std::string to_string<nvcuda::wmma::matrix_b>       (){return "matrix_b";}
-template <> std::string to_string<nvcuda::wmma::col_major>      (){return "col_major";}
-template <> std::string to_string<nvcuda::wmma::row_major>      (){return "row_major";}
-template <> std::string to_string<float>                        (){return "float";}
-template <> std::string to_string<half>                         (){return "half";}
-template <> std::string to_string<nvcuda::wmma::precision::tf32>(){return "tf32";}
-
+#include "utils.hpp"
 
 __device__ half abs(const half a) {
 	if (__half2float(a) < 0) {
@@ -25,12 +12,12 @@ __device__ half abs(const half a) {
 
 /// Load
 
-template <class Use, int m, int n, int k, class T, class Layout>
+template <class Use, int m, int n, int k, class T, class Layout, bool Cor>
 __global__ void load_vector_ab_test_kernel(
 		const float* const cor_ptr,
 		const float* const src_ptr
 		) {
-	mtk::wmma::fragment_f32<Use, m, n, k, T, Layout> frag, frag_c;
+	typename mtk::test_utils::select_fragemnt<Cor, Use, m, n, k, T, Layout>::type frag, frag_c;
 	mtk::wmma::fill_fragment(frag, 0.0f);
 
 	mtk::wmma::load_vector(frag, src_ptr);
@@ -42,19 +29,19 @@ __global__ void load_vector_ab_test_kernel(
 	for (unsigned i = 0; i < frag.num_elements; i++) {
 		max_error = max(max_error, abs(frag.x(i) - frag_c.x(i)));
 	}
-	for (unsigned i = 0; i < warp_size; i++) {
+	for (unsigned i = 0; i < mtk::test_utils::warp_size; i++) {
 		__syncthreads();
 		if (i == threadIdx.x) printf("[%u] %e\n", i, max_error);
 	}
 }
 
-template <int m, int n, int k, class T>
+template <int m, int n, int k, class T, bool Cor>
 __global__ void load_vector_acc_test_kernel(
 		const float* const cor_ptr,
 		const float* const src_ptr,
 		const nvcuda::wmma::layout_t layout
 		) {
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T> frag, frag_c;
+	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::accumulator, m, n, k, T>::type frag, frag_c;
 	mtk::wmma::fill_fragment(frag, 0.0f);
 
 	mtk::wmma::load_vector(frag, src_ptr, layout);
@@ -66,19 +53,20 @@ __global__ void load_vector_acc_test_kernel(
 	for (unsigned i = 0; i < frag.num_elements; i++) {
 		max_error = max(max_error, abs(frag.x(i) - frag_c.x(i)));
 	}
-	for (unsigned i = 0; i < warp_size; i++) {
+	for (unsigned i = 0; i < mtk::test_utils::warp_size; i++) {
 		__syncthreads();
 		if (i == threadIdx.x) printf("[%u] %e\n", i, max_error);
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout>
+template <class Use, int m, int n, int k, class T, class Layout, bool Cor>
 void load_vector_test() {
 	std::printf("!-- %s\n", __func__);
-	std::printf("Use    : %s\n", to_string<Use>().c_str());
-	std::printf("Layout : %s\n", to_string<Layout>().c_str());
-	std::printf("Type   : %s\n", to_string<T>().c_str());
+	std::printf("Use    : %s\n", mtk::test_utils::to_string<Use>().c_str());
+	std::printf("Layout : %s\n", mtk::test_utils::to_string<Layout>().c_str());
+	std::printf("Type   : %s\n", mtk::test_utils::to_string<T>().c_str());
 	std::printf("Size   : %u, %u, %u\n", m, n, k);
+	std::printf("Cor    : %u\n", (Cor ? 1 : 0));
 	constexpr unsigned mem_m = mtk::wmma::detail::select_value<Use, m, k, m>();
 	constexpr unsigned mem_n = mtk::wmma::detail::select_value<Use, k, n, n>();
 
@@ -104,9 +92,9 @@ void load_vector_test() {
 
 	if constexpr (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
 		const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
-		load_vector_acc_test_kernel<m, n, k, T><<<1, warp_size>>>(mat_mem, vec_mem, layout);
+		load_vector_acc_test_kernel<m, n, k, T, Cor><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem, layout);
 	} else {
-		load_vector_ab_test_kernel<Use, m, n, k, T, Layout><<<1, warp_size>>>(mat_mem, vec_mem);
+		load_vector_ab_test_kernel<Use, m, n, k, T, Layout, Cor><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem);
 	}
 
 	cudaDeviceSynchronize();
@@ -117,13 +105,13 @@ void load_vector_test() {
 
 /// Store
 
-template <int m, int n, int k, class T>
+template <int m, int n, int k, class T, bool Cor>
 __global__ void store_vector_acc_test_kernel(
 		float* const dst_ptr,
 		const float* const src_ptr,
 		const nvcuda::wmma::layout_t layout
 		) {
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T> frag;
+	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::accumulator, m, n, k, T>::type frag;
 
 	constexpr unsigned mem_m = m;
 	mtk::wmma::load_matrix_sync(frag, src_ptr, mem_m, layout);
@@ -131,13 +119,14 @@ __global__ void store_vector_acc_test_kernel(
 	mtk::wmma::store_vector(dst_ptr, frag, layout);
 }
 
-template <class Use, int m, int n, int k, class T, class Layout>
+template <class Use, int m, int n, int k, class T, class Layout, bool Cor>
 void store_vector_test() {
 	std::printf("!-- %s\n", __func__);
-	std::printf("Use    : %s\n", to_string<Use>().c_str());
-	std::printf("Layout : %s\n", to_string<Layout>().c_str());
-	std::printf("Type   : %s\n", to_string<T>().c_str());
+	std::printf("Use    : %s\n", mtk::test_utils::to_string<Use>().c_str());
+	std::printf("Layout : %s\n", mtk::test_utils::to_string<Layout>().c_str());
+	std::printf("Type   : %s\n", mtk::test_utils::to_string<T>().c_str());
 	std::printf("Size   : %u, %u, %u\n", m, n, k);
+	std::printf("Cor    : %u\n", (Cor ? 1 : 0));
 	constexpr unsigned mem_m = mtk::wmma::detail::select_value<Use, m, k, m>();
 	constexpr unsigned mem_n = mtk::wmma::detail::select_value<Use, k, n, n>();
 
@@ -164,7 +153,7 @@ void store_vector_test() {
 	}
 
 	const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
-	store_vector_acc_test_kernel<m, n, k, T><<<1, warp_size>>>(mat_mem, mat_mem, layout);
+	store_vector_acc_test_kernel<m, n, k, T, Cor><<<1, mtk::test_utils::warp_size>>>(mat_mem, mat_mem, layout);
 
 	cudaDeviceSynchronize();
 
@@ -181,23 +170,39 @@ void store_vector_test() {
 }
 
 int main() {
-	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, half, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, half, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, half, nvcuda::wmma::row_major>();
-	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, half, nvcuda::wmma::row_major>();
-	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, true >();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, true >();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, false>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, false>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, false>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, false>();
 
 #ifdef TEST_TF32
-	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
-	load_vector_test<nvcuda::wmma::matrix_a   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
-	load_vector_test<nvcuda::wmma::matrix_b   , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
-	load_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, true >();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, true >();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, true >();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, false>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, false>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, false>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, false>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, false>();
 #endif
 }

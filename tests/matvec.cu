@@ -1,50 +1,22 @@
 #include <iostream>
 #include <random>
-#include <wmma_extension/hmma_f32_f32.hpp>
+#include "utils.hpp"
 
-template <class T>
-std::string get_type_name();
-template <> std::string get_type_name<half>() {return "half";}
-template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "tf32";}
-
-constexpr unsigned warp_size = 32;
-
-__device__ void copy_matrix(
-		float* const dst, const unsigned ldd,
-		const float* const src, const unsigned lds,
-		const unsigned m, const unsigned n) {
-	for (unsigned i = 0; i < m * n; i += warp_size) {
-		const auto j = i + threadIdx.x;
-		if (j >= m * n) return;
-		const auto mm = j % m;
-		const auto mn = j / m;
-		dst[mm + mn * ldd] = src[mm + mn * lds];
-	}
-}
-
-__device__ void fill_zero(float* const dst, const unsigned size) {
-	for (unsigned i = 0; i < size; i += warp_size) {
-		const auto j = i + threadIdx.x;
-		if (j >= size) return;
-		dst[j] = 0.0f;
-	}
-}
-
-template <unsigned N, class T>
+template <unsigned N, class T, bool Cor>
 __global__ void matvec_kernel(float* const y_ptr, const float* const a_ptr, const float* const x_ptr) {
 	__shared__ float smem[N * N];
-	fill_zero(smem, N * N);
+	mtk::test_utils::fill_zero(smem, N * N);
 
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, T, nvcuda::wmma::col_major> frag_a;
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, T, nvcuda::wmma::col_major> frag_x;
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T> frag_y;
+	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::matrix_a   , N, N, N, T, nvcuda::wmma::col_major>::type frag_a;
+	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::matrix_b   , N, N, N, T, nvcuda::wmma::col_major>::type frag_x;
+	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::accumulator, N, N, N, T>::type frag_y;
 
 	// Load A
-	copy_matrix(smem, N, a_ptr, N, N, N);
+	mtk::test_utils::copy_matrix(smem, N, a_ptr, N, N, N);
 	mtk::wmma::load_matrix_sync(frag_a, smem, N);
 
 	// Load X
-	copy_matrix(smem, N, x_ptr, N, N, 1);
+	mtk::test_utils::copy_matrix(smem, N, x_ptr, N, N, 1);
 	mtk::wmma::fill_zero(frag_x);
 	mtk::wmma::load_vector(frag_x, smem);
 
@@ -53,10 +25,10 @@ __global__ void matvec_kernel(float* const y_ptr, const float* const a_ptr, cons
 
 	// Store D
 	mtk::wmma::store_vector(smem, frag_y, nvcuda::wmma::mem_col_major);
-	copy_matrix(y_ptr, N, smem, N, N, 1);
+	mtk::test_utils::copy_matrix(y_ptr, N, smem, N, N, 1);
 }
 
-template <unsigned N, class T, bool AddC>
+template <unsigned N, class T, bool AddC, bool Cor>
 void test_matvec() {
 	float *hX, *hY, *hA;
 	cudaMallocHost(&hX, N     * sizeof(float));
@@ -74,7 +46,7 @@ void test_matvec() {
 	}
 	cudaDeviceSynchronize();
 
-	matvec_kernel<N, T><<<1, warp_size>>>(hY, hA, hX);
+	matvec_kernel<N, T, Cor><<<1, mtk::test_utils::warp_size>>>(hY, hA, hX);
 
 	cudaDeviceSynchronize();
 
@@ -88,7 +60,7 @@ void test_matvec() {
 		max_error = std::max(max_error, std::abs(cor_d - hY[n]));
 	}
 
-	std::printf("[N = %2u, T = %4s, AddC = %u] error = %e\n", N, get_type_name<T>().c_str(), (AddC ? 1 : 0), max_error);
+	std::printf("[N = %2u, T = %4s, AddC = %u, Cor = %u] error = %e\n", N, mtk::test_utils::get_type_name<T>().c_str(), (AddC ? 1 : 0), (Cor ? 1 : 0), max_error);
 
 	cudaFreeHost(hA);
 	cudaFreeHost(hX);
@@ -96,10 +68,14 @@ void test_matvec() {
 }
 
 int main() {
-	test_matvec<32, half, true>();
-	test_matvec<32, half, false>();
+	test_matvec<32, half, true , true >();
+	test_matvec<32, half, false, true >();
+	test_matvec<32, half, true , false>();
+	test_matvec<32, half, false, false>();
 #ifdef TEST_TF32
-	test_matvec<32, nvcuda::wmma::precision::tf32, true>();
-	test_matvec<32, nvcuda::wmma::precision::tf32, false>();
+	test_matvec<32, nvcuda::wmma::precision::tf32, true , true >();
+	test_matvec<32, nvcuda::wmma::precision::tf32, false, true >();
+	test_matvec<32, nvcuda::wmma::precision::tf32, true , false>();
+	test_matvec<32, nvcuda::wmma::precision::tf32, false, false>();
 #endif
 }
