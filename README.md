@@ -71,5 +71,41 @@ Currently `mtk::wmma::min_fragment_m<T>` and `mtk::wmma::min_fragmnet_n<T>` are 
 - `mtk::wmma::store_vector`
 - `mtk::wmma::fill_zero`
 
+## Evaluation of the effect of this correction technique
+To evaluate the effect of this correction technique, this library also provides no correcting fragment.
+To make it easy to use it, you can define and use a helper fragment selector like this.
+
+```cpp
+#include <wmma_extension/hmma_f32_f32.hpp>
+#include <wmma_extension/hmma_f32_f32_no_cor.hpp>
+
+template <bool Cor, class Use, unsigned m, unsigned n, unsigned k, class T, class Layout = void>
+struct select_fragemnt {
+	using type = void;
+};
+
+template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
+struct select_fragemnt<true , Use, m, n, k, T, Layout> {
+	using type = typename mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>;
+};
+
+template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
+struct select_fragemnt<false, Use, m, n, k, T, Layout> {
+	using type = typename mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>;
+};
+```
+
+Then use like this.
+
+```cpp
+template <bool Cor>
+void kernel() {
+	typename select_fragemnt<Cor, nvcuda::wmma::matrix_a   , N, N, N, T, nvcuda::wmma::col_major>::type frag_a;
+	typename select_fragemnt<Cor, nvcuda::wmma::matrix_b   , N, N, N, T, nvcuda::wmma::col_major>::type frag_b;
+	typename select_fragemnt<Cor, nvcuda::wmma::accumulator, N, N, N, T>::type frag_c, frag_d;
+	// ...
+}
+```
+
 ## Lisence
 MIT
