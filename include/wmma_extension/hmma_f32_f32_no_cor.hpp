@@ -65,7 +65,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32_no_cor<nvcuda::wmma::ac
 }
 
 template <class Use, int m, int n, int k, class T, class Layout>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>& frag, const float* const ptr, const unsigned ldm) {
+__device__ void load_matrix_sync(mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<T>(), 16>();
 	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<T>(), 16, 16>();
 
@@ -83,6 +83,9 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T,
 					}
 				}
 			});
+	if (sync) {
+		__syncthreads();
+	}
 }
 
 // Store matrix

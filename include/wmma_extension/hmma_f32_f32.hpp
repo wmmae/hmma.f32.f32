@@ -75,7 +75,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<nvcuda::wmma::accumulat
 }
 
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr, const unsigned ldm) {
+__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<half>(), 16>();
 	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<half>(), 16, 16>();
 
@@ -95,9 +95,12 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, half, Lay
 					}
 				}
 			});
+	if (sync) {
+		__syncthreads();
+	}
 }
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr, const unsigned ldm) {
+__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	constexpr auto frag_m = detail::select_value<Use, 16, detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16>();
 	constexpr auto frag_n = detail::select_value<Use, detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16, 16>();
 
@@ -117,6 +120,9 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::w
 					}
 				}
 			});
+	if (sync) {
+		__syncthreads();
+	}
 }
 
 // Store matrix
