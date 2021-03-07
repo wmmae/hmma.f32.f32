@@ -32,7 +32,7 @@ struct fragment_f32 {
 };
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
-__device__ void fill_fragment(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& frag, const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::detail::sub_frag_t<Use, T>::type>::type v) {
+__device__ void fill_fragment(fragment_f32<Use, m, n, k, T, Layout>& frag, const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::detail::sub_frag_t<Use, T>::type>::type v) {
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 			nvcuda::wmma::fill_fragment(frag.sub_frag  [bm + frag.num_sub_frag_m * bn], v);
@@ -42,7 +42,7 @@ __device__ void fill_fragment(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& 
 }
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
-__device__ void fill_zero(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& frag) {
+__device__ void fill_zero(fragment_f32<Use, m, n, k, T, Layout>& frag) {
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 			mtk::wmma::fill_zero(frag.sub_frag  [bm + frag.num_sub_frag_m * bn]);
@@ -53,7 +53,7 @@ __device__ void fill_zero(mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>& frag
 
 // Load matrix
 template <int m, int n, int k, class T>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void load_matrix_sync(fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -79,7 +79,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<nvcuda::wmma::accumulat
 }
 
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
+__device__ void load_matrix_sync(fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<half>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<half>(), 16, 16>();
 
@@ -104,7 +104,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, half, Lay
 	}
 }
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
+__device__ void load_matrix_sync(fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16, 16>();
 
@@ -131,7 +131,7 @@ __device__ void load_matrix_sync(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::w
 
 // Store matrix
 template <class Use, int m, int n, int k, class T>
-__device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -158,7 +158,7 @@ __device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use,
 }
 
 template <class Use, int m, int n, int k, class T>
-__device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<Use, m, n, k, T> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -186,7 +186,7 @@ __device__ void store_matrix_sync(float* const ptr, mtk::wmma::fragment_f32<Use,
 
 // Load vector
 template <int m, int n, int k, class T>
-__device__ void load_vector(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
+__device__ void load_vector(fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -202,7 +202,7 @@ __device__ void load_vector(mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m
 }
 
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr) {
+__device__ void load_vector(fragment_f32<Use, m, n, k, half, Layout>& frag, const float* const ptr) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<half>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<half>(), 16, 16>();
 
@@ -227,7 +227,7 @@ __device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, half, Layout>&
 }
 
 template <class Use, int m, int n, int k, class Layout>
-__device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr) {
+__device__ void load_vector(fragment_f32<Use, m, n, k, nvcuda::wmma::precision::tf32, Layout>& frag, const float* const ptr) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<nvcuda::wmma::precision::tf32>(), 16, 16>();
 
@@ -253,7 +253,7 @@ __device__ void load_vector(mtk::wmma::fragment_f32<Use, m, n, k, nvcuda::wmma::
 
 // Store vector
 template <int m, int n, int k>
-__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, half>& frag, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, half>& frag, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -285,7 +285,7 @@ __device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::w
 }
 
 template <int m, int n, int k>
-__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, half>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, half>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -317,7 +317,7 @@ __device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::w
 }
 
 template <int m, int n, int k>
-__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, nvcuda::wmma::precision::tf32>& frag, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, nvcuda::wmma::precision::tf32>& frag, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -349,7 +349,7 @@ __device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::w
 }
 
 template <int m, int n, int k>
-__device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, nvcuda::wmma::precision::tf32>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, nvcuda::wmma::precision::tf32>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, 16, mtk::wmma::detail::get_fragment_k<float>(), 16>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, mtk::wmma::detail::get_fragment_k<float>(), 16, 16>();
 
@@ -383,10 +383,10 @@ __device__ void store_vector(float* const ptr, mtk::wmma::fragment_f32<nvcuda::w
 // mma
 template <int m, int n, int k, class A_Layout, class B_Layout, class T>
 __device__ void mma_sync(
-		mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
-		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout>& frag_a,
-		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout>& frag_b,
-		const mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_c) {
+		fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
+		const fragment_f32<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout>& frag_a,
+		const fragment_f32<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout>& frag_b,
+		const fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_c) {
 	constexpr unsigned num_m_block = frag_d.num_sub_frag_m;
 	constexpr unsigned num_n_block = frag_d.num_sub_frag_n;
 	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
@@ -437,9 +437,9 @@ __device__ void mma_sync(
 
 template <int m, int n, int k, class A_Layout, class B_Layout, class T>
 __device__ void mma_sync(
-		mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
-		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout>& frag_a,
-		const mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout>& frag_b) {
+		fragment_f32<nvcuda::wmma::accumulator, m, n, k, T>& frag_d,
+		const fragment_f32<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout>& frag_a,
+		const fragment_f32<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout>& frag_b) {
 	constexpr unsigned num_m_block = frag_d.num_sub_frag_m;
 	constexpr unsigned num_n_block = frag_d.num_sub_frag_n;
 	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
