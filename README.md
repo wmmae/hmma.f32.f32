@@ -108,9 +108,9 @@ void kernel() {
 ```
 
 ## Namespace
-For easy portability, you can use `nvcuda` namespace instead of `mtk` by defining `MTK_USE_NVCUDA_NAMESPACE` before including header files.
+For easy portability, you can use `nvcuda` namespace instead of `mtk` by defining `WMMAE_USE_NVCUDA_NAMESPACE` before including header files.
 ```cpp
-#define MTK_USE_NVCUDA_NAMESPACE
+#define WMMA_USE_NVCUDA_NAMESPACE
 #include <wmma_extension/hmma_f32_f32.hpp>
 
 // ...

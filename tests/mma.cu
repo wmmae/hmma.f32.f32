@@ -4,7 +4,7 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include <wmma_extension/hmma_f32_f32_no_cor.hpp>
 
-#ifdef MTK_USE_NVCUDA_NAMESPACE
+#ifdef WMMAE_USE_NVCUDA_NAMESPACE
 namespace f32_namespace = nvcuda;
 #else
 namespace f32_namespace = mtk;
