@@ -2,6 +2,9 @@
 #define __MTK_HMMA_F32_F32_HPP__
 #include "detail/common.hpp"
 
+#ifdef MTK_USE_NVCUDA_NAMESPACE
+namespace nvcuda {
+#else
 namespace mtk {
 namespace wmma {
 
