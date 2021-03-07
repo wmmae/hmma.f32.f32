@@ -2,20 +2,26 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include "utils.hpp"
 
+#ifdef MTK_USE_NVCUDA_NAMESPACE
+namespace f32_namespace = nvcuda;
+#else
+namespace f32_namespace = mtk;
+#endif
+
 constexpr unsigned warp_size = 32;
 
 template <unsigned N, class T>
 __global__ void test_elementwise_kernel(float* const ptr) {
 	__shared__ float smem[N * N];
 
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T> frag;
-	mtk::wmma::fill_fragment(frag, 0.0f);
+	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T> frag;
+	f32_namespace::wmma::fill_fragment(frag, 0.0f);
 
 	for (unsigned i = 0; i < frag.num_elements; i++) {
 		frag.x(i) = threadIdx.x * 100 + i;
 	}
 
-	mtk::wmma::store_matrix_sync(smem, frag, N, nvcuda::wmma::mem_col_major);
+	f32_namespace::wmma::store_matrix_sync(smem, frag, N, nvcuda::wmma::mem_col_major);
 
 	for (unsigned i = 0; i < N * N; i += warp_size) {
 		const auto index = i + threadIdx.x;

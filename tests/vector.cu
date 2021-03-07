@@ -3,6 +3,12 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include "utils.hpp"
 
+#ifdef MTK_USE_NVCUDA_NAMESPACE
+namespace f32_namespace = nvcuda;
+#else
+namespace f32_namespace = mtk;
+#endif
+
 __device__ half abs(const half a) {
 	if (__half2float(a) < 0) {
 		return -a;
@@ -18,12 +24,12 @@ __global__ void load_vector_ab_test_kernel(
 		const float* const src_ptr
 		) {
 	typename mtk::test_utils::select_fragemnt<Cor, Use, m, n, k, T, Layout>::type frag, frag_c;
-	mtk::wmma::fill_fragment(frag, 0.0f);
+	f32_namespace::wmma::fill_fragment(frag, 0.0f);
 
-	mtk::wmma::load_vector(frag, src_ptr);
+	f32_namespace::wmma::load_vector(frag, src_ptr);
 
 	constexpr unsigned mem_m = mtk::wmma::detail::select_value<Use, m, k, m>();
-	mtk::wmma::load_matrix_sync(frag_c, cor_ptr, mem_m);
+	f32_namespace::wmma::load_matrix_sync(frag_c, cor_ptr, mem_m);
 
 	float max_error = 0;
 	for (unsigned i = 0; i < frag.num_elements; i++) {
@@ -42,12 +48,12 @@ __global__ void load_vector_acc_test_kernel(
 		const nvcuda::wmma::layout_t layout
 		) {
 	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::accumulator, m, n, k, T>::type frag, frag_c;
-	mtk::wmma::fill_fragment(frag, 0.0f);
+	f32_namespace::wmma::fill_fragment(frag, 0.0f);
 
-	mtk::wmma::load_vector(frag, src_ptr, layout);
+	f32_namespace::wmma::load_vector(frag, src_ptr, layout);
 
 	constexpr unsigned mem_m = m;
-	mtk::wmma::load_matrix_sync(frag_c, cor_ptr, mem_m, layout);
+	f32_namespace::wmma::load_matrix_sync(frag_c, cor_ptr, mem_m, layout);
 
 	float max_error = 0;
 	for (unsigned i = 0; i < frag.num_elements; i++) {
@@ -114,9 +120,9 @@ __global__ void store_vector_acc_test_kernel(
 	typename mtk::test_utils::select_fragemnt<Cor, nvcuda::wmma::accumulator, m, n, k, T>::type frag;
 
 	constexpr unsigned mem_m = m;
-	mtk::wmma::load_matrix_sync(frag, src_ptr, mem_m, layout);
+	f32_namespace::wmma::load_matrix_sync(frag, src_ptr, mem_m, layout);
 
-	mtk::wmma::store_vector(dst_ptr, frag, layout);
+	f32_namespace::wmma::store_vector(dst_ptr, frag, layout);
 }
 
 template <class Use, int m, int n, int k, class T, class Layout, bool Cor>
