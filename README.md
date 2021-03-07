@@ -113,7 +113,18 @@ For easy portability, you can use `nvcuda` namespace instead of `mtk` by definin
 #define WMMA_USE_NVCUDA_NAMESPACE
 #include <wmma_extension/hmma_f32_f32.hpp>
 
-// ...
+template <unsigned N>
+__global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
+	__shared__ float smem[N * N];
+
+	nvcuda::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
+
+	// Load A
+	// copy_matrix(smem, N, a_ptr, N, N, N);
+	nvcuda::wmma::load_matrix_sync(frag_a, smem, N);
+
+    // ...
+}
 ```
 
 ## Lisence
