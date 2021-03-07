@@ -2,6 +2,12 @@
 #include <random>
 #include "utils.hpp"
 
+#ifdef WMMAE_USE_NVCUDA_NAMESPACE
+namespace f32_namespace = nvcuda;
+#else
+namespace f32_namespace = mtk;
+#endif
+
 template <unsigned N, class T, bool Cor>
 __global__ void matvec_kernel(float* const y_ptr, const float* const a_ptr, const float* const x_ptr) {
 	__shared__ float smem[N * N];
@@ -13,18 +19,18 @@ __global__ void matvec_kernel(float* const y_ptr, const float* const a_ptr, cons
 
 	// Load A
 	mtk::test_utils::copy_matrix(smem, N, a_ptr, N, N, N);
-	mtk::wmma::load_matrix_sync(frag_a, smem, N);
+	f32_namespace::wmma::load_matrix_sync(frag_a, smem, N);
 
 	// Load X
 	mtk::test_utils::copy_matrix(smem, N, x_ptr, N, N, 1);
-	mtk::wmma::fill_zero(frag_x);
-	mtk::wmma::load_vector(frag_x, smem);
+	f32_namespace::wmma::fill_zero(frag_x);
+	f32_namespace::wmma::load_vector(frag_x, smem);
 
 	// mma
-	mtk::wmma::mma_sync(frag_y, frag_a, frag_x);
+	f32_namespace::wmma::mma_sync(frag_y, frag_a, frag_x);
 
 	// Store D
-	mtk::wmma::store_vector(smem, frag_y, nvcuda::wmma::mem_col_major);
+	f32_namespace::wmma::store_vector(smem, frag_y, nvcuda::wmma::mem_col_major);
 	mtk::test_utils::copy_matrix(y_ptr, N, smem, N, N, 1);
 }
 

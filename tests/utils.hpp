@@ -5,6 +5,12 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include <wmma_extension/hmma_f32_f32_no_cor.hpp>
 
+#ifdef WMMAE_USE_NVCUDA_NAMESPACE
+namespace fragment_f32_namespace = nvcuda;
+#else
+namespace fragment_f32_namespace = mtk;
+#endif
+
 namespace mtk {
 namespace test_utils {
 
@@ -26,12 +32,12 @@ struct select_fragemnt {
 
 template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
 struct select_fragemnt<true , Use, m, n, k, T, Layout> {
-	using type = typename mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>;
+	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout>;
 };
 
 template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
 struct select_fragemnt<false, Use, m, n, k, T, Layout> {
-	using type = typename mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>;
+	using type = typename fragment_f32_namespace::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>;
 };
 
 
