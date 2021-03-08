@@ -61,6 +61,9 @@ Currently `mtk::wmma::min_fragment_m<T>` and `mtk::wmma::min_fragmnet_n<T>` are 
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
 
+### Caution
+- `element_type` is `float`, which is same with the argument type of `load_matrix_sync` and `store_matrix_sync`.
+
 ## Functions
 - `mtk::wmma::fill_fragment`
 - `mtk::wmma::load_matrix_sync`
