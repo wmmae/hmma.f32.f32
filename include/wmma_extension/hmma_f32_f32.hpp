@@ -11,6 +11,8 @@ namespace wmma {
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
 struct fragment_f32 {
+	using element_type = T;
+
 	using sub_frag_t = nvcuda::wmma::fragment<Use, 16, 16, mtk::wmma::detail::get_fragment_k<T>(), typename mtk::wmma::detail::sub_frag_t<Use, T>::type, Layout>;
 	static constexpr int num_sub_frag_m = mtk::wmma::detail::select_value<Use, m, k, m>() / mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<T>(), 16>();
 	static constexpr int num_sub_frag_n = mtk::wmma::detail::select_value<Use, k, n, n>() / mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<T>(), 16, 16>();
