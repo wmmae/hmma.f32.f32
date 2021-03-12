@@ -31,21 +31,12 @@ struct default_policy<nvcuda::wmma::precision::tf32> {using type = mtk::wmma::de
 // ===================================
 // Default fragment selector
 // ===================================
-template <class Use, int m, int n, int k, class T, class Layout, class Policy>
+template <class Use, class T, class Layout, class Policy>
 struct default_fragment;
 
-template <class Use, int m, int n, int k, class T, class Layout>
-struct default_fragment<Use, m, n, k, T, Layout, Policy<op_wmma, 16, 16, 16>> {
-	using type = nvcuda::wmma::fragment<Use, 16, 16, 16, T, Layout>;
-};
-template <class Use, int m, int n, int k, class T, class Layout>
-struct default_fragment<Use, m, n, k, T, Layout, Policy<op_wmma, 16, 16, 8 >> {
-	using type = nvcuda::wmma::fragment<Use, 16, 16, 8, T, Layout>;
-};
-
-template <class Use, int m, int n, int k, class T, class Layout>
-struct default_fragment<Use, m, n, k, T, Layout, Policy<op_mma, 16, 8, 16>> {
-	using type = mtk::wmma::mma::fragment<Use, 16, 8, 16, T, Layout>;
+template <class Use, class T, class Layout, int fm, int fn, int fk>
+struct default_fragment<Use, T, Layout, Policy<op_wmma, fm, fn, fk>> {
+	using type = nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>;
 };
 } // namespace detail
 
