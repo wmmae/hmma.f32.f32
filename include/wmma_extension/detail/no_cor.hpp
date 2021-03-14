@@ -1,8 +1,7 @@
 #ifndef __MTK_HMMA_F32_F32_NO_COR_HPP__
 #define __MTK_HMMA_F32_F32_NO_COR_HPP__
 
-#include "detail/common.hpp"
-#include "hmma_f32_f32.hpp"
+#include "common.hpp"
 
 #ifdef WMMAE_USE_NVCUDA_NAMESPACE
 namespace nvcuda {

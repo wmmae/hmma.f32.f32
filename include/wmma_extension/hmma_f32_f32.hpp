@@ -410,3 +410,5 @@ __device__ void mma_sync(
 } // namespace wmma
 } // namespace mtk
 #endif
+
+#include "detail/no_cor.hpp"
