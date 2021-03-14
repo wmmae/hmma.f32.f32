@@ -298,7 +298,7 @@ __device__ void mma_sync(
 			mma_op(
 					frag_d.sub_frag[bm + bn * num_m_block],
 					frag_a.sub_frag[bm + 0  * num_m_block],
-					frag_b.sub_frag[2  + bn * num_k_block],
+					frag_b.sub_frag[0  + bn * num_k_block],
 					frag_c.sub_frag[bm + bn * num_m_block]
 					);
 			mma_op(

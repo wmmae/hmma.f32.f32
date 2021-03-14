@@ -126,7 +126,7 @@ struct store_matrix_sync_wrapper;
 
 template <class T, int fm, int fn, int fk>
 struct store_matrix_sync_wrapper<T, Policy<mtk::wmma::op_wmma, fm, fn, fk>> {
-	__device__ void operator()(float* ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, float>& frag, unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	__device__ void operator()(float* ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, float>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 		nvcuda::wmma::store_matrix_sync(ptr, frag, ldm, layout);
 	}
 };
