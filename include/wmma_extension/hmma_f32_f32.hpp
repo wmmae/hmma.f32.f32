@@ -127,10 +127,10 @@ __device__ void load_matrix_sync(fragment_f32<Use, m, n, k, T, Layout, Policy>& 
 }
 
 // Store matrix
-template <class Use, int m, int n, int k, class T, class Policy>
-__device__ void store_matrix_sync(float* const ptr, fragment_f32<Use, m, n, k, T, void, Policy> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
-	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, Policy::m, Policy::k, Policy::m>();
-	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, Policy::k, Policy::n, Policy::n>();
+template <int m, int n, int k, class T, class Policy>
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, Policy>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>();
+	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>();
 
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
@@ -143,15 +143,18 @@ __device__ void store_matrix_sync(float* const ptr, fragment_f32<Use, m, n, k, T
 			} else {
 				mem_offset = mtk::wmma::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>(0, ldm, bm * frag_m, bn * frag_n);
 			}
+	if (threadIdx.x == 0) {
+		printf("mem_offset = %u, b=(%u, %u)\n", mem_offset, bm, bn);
+	}
 			mtk::wmma::detail::store_matrix_sync_wrapper<T, Policy>{}(ptr + mem_offset, frag.sub_frag[bm + frag.num_sub_frag_m * bn], ldm, layout);
 		}
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Policy>
-__device__ void store_matrix_sync(float* const ptr, fragment_f32<Use, m, n, k, T, void, Policy> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
-	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, Policy::m, Policy::k, Policy::m>();
-	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, Policy::k, Policy::n, Policy::n>();
+template <int m, int n, int k, class T, class Policy>
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, Policy>& frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
+	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>();
+	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>();
 
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
