@@ -32,6 +32,8 @@ template <class ErrorCorrection>
 struct default_policy<half                         , ErrorCorrection, mtk::wmma::op_wmma> {using type = mtk::wmma::detail::Policy<mtk::wmma::op_wmma, ErrorCorrection, 16, 16, 16>;};
 template <class ErrorCorrection>
 struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::op_wmma> {using type = mtk::wmma::detail::Policy<mtk::wmma::op_wmma, ErrorCorrection, 16, 16, 8 >;};
+template <class ErrorCorrection>
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::op_mma > {using type = mtk::wmma::detail::Policy<mtk::wmma::op_mma , ErrorCorrection, 16, 8 , 16>;};
 
 
 // ===================================
@@ -43,6 +45,11 @@ struct default_fragment;
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
 struct default_fragment<Use, T, Layout, Policy<op_wmma, ErrorCorrection, fm, fn, fk>> {
 	using type = nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>;
+};
+
+template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
+struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn, fk>> {
+	using type = mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>;
 };
 } // namespace detail
 
