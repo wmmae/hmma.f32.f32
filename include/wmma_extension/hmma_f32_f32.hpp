@@ -132,8 +132,10 @@ __device__ void load_matrix_sync(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma
 }
 
 // Store matrix
+// [Important!!]
+// `frag` must not be a ref because this function breaks frag.
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>();
@@ -155,7 +157,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::a
 }
 
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>>& frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
+__device__ void store_matrix_sync(float* const ptr, fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>();
 	constexpr auto frag_n = mtk::wmma::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>();
