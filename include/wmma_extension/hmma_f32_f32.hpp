@@ -32,8 +32,8 @@ struct fragment_f32 {
 	static const int sub_frag_k = Policy::k;
 
 	using sub_frag_t = typename mtk::wmma::detail::default_fragment<Use, typename mtk::wmma::detail::sub_frag_t<Use, T>::type, Layout, Policy>::type;
-	static constexpr int num_sub_frag_m = mtk::wmma::detail::select_value<Use, m, k, m>() / mtk::wmma::detail::select_value<Use, sub_frag_m, mtk::wmma::detail::get_fragment_k<T>(), sub_frag_k>();
-	static constexpr int num_sub_frag_n = mtk::wmma::detail::select_value<Use, k, n, n>() / mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<T>(), sub_frag_n, sub_frag_k>();
+	static constexpr int num_sub_frag_m = mtk::wmma::detail::select_value<Use, m, k, m>() / mtk::wmma::detail::select_value<Use, sub_frag_m, sub_frag_k, sub_frag_m>();
+	static constexpr int num_sub_frag_n = mtk::wmma::detail::select_value<Use, k, n, n>() / mtk::wmma::detail::select_value<Use, sub_frag_k, sub_frag_n, sub_frag_n>();
 
 	sub_frag_t sub_frag  [num_sub_frag_m * num_sub_frag_n];
 	sub_frag_t sub_d_frag[num_sub_frag_m * num_sub_frag_n];
