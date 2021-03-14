@@ -3,7 +3,6 @@
 #include <cuda_fp16.h>
 #include <string>
 #include <wmma_extension/hmma_f32_f32.hpp>
-#include <wmma_extension/hmma_f32_f32_no_cor.hpp>
 
 #ifdef WMMAE_USE_NVCUDA_NAMESPACE
 namespace fragment_f32_namespace = nvcuda;
@@ -32,12 +31,12 @@ struct select_fragemnt {
 
 template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
 struct select_fragemnt<true , Use, m, n, k, T, Layout> {
-	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout>;
+	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout, typename mtk::wmma::detail::default_policy<T, mtk::wmma::op_with_error_correction>::type>;
 };
 
 template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
 struct select_fragemnt<false, Use, m, n, k, T, Layout> {
-	using type = typename fragment_f32_namespace::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>;
+	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout, typename mtk::wmma::detail::default_policy<T, mtk::wmma::op_without_error_correction>::type>;
 };
 
 
