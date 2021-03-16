@@ -10,11 +10,11 @@ namespace f32_namespace = mtk;
 
 constexpr unsigned warp_size = 32;
 
-template <unsigned N, class T>
+template <unsigned N, class T, class Policy>
 __global__ void test_elementwise_kernel(float* const ptr) {
 	__shared__ float smem[N * N];
 
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T> frag;
+	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T, void, Policy> frag;
 	f32_namespace::wmma::fill_fragment(frag, 0.0f);
 
 	for (unsigned i = 0; i < frag.num_elements; i++) {
@@ -29,13 +29,22 @@ __global__ void test_elementwise_kernel(float* const ptr) {
 	}
 }
 
-template <unsigned N, class T>
+template <unsigned N, class T, class Policy>
 void test_elementwise() {
-	std::printf("[%s, N = %u, T = %s]\n", __func__, N, mtk::test_utils::to_string<T>().c_str());
+	std::printf("[%s, N = %u, T = %s, Policy = <%7s,%9s,%2u,%2u,%2u>]\n",
+			__func__,
+			N,
+			mtk::test_utils::to_string<T>().c_str(),
+			std::is_same<typename Policy::op, mtk::wmma::op_wmma>::value ? "op_wmma" : "op_mma",
+			std::is_same<typename Policy::error_correction, mtk::wmma::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
+			Policy::m,
+			Policy::n,
+			Policy::k
+			);
 	float* hC;
 	cudaMallocHost(&hC, N * N * sizeof(float));
 
-	test_elementwise_kernel<N, T><<<1, warp_size>>>(hC);
+	test_elementwise_kernel<N, T, Policy><<<1, warp_size>>>(hC);
 	cudaDeviceSynchronize();
 
 	for (unsigned i = 0; i < N; i++) {
@@ -47,8 +56,12 @@ void test_elementwise() {
 }
 
 int main() {
-	test_elementwise<32, half>();
+	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type>();
 #ifdef TEST_TF32
-	test_elementwise<32, nvcuda::wmma::precision::tf32>();
+	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type>();
+	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type>();
 #endif
 }
