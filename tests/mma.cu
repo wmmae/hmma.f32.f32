@@ -9,6 +9,17 @@ namespace f32_namespace = nvcuda;
 namespace f32_namespace = mtk;
 #endif
 
+template <class T, class ErrorCorrection>
+constexpr double error_threshold = 0.0;
+template <>
+constexpr double error_threshold<half                         , mtk::wmma::op_with_error_correction   > = 1e-5;
+template <>
+constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   > = 1e-5;
+template <>
+constexpr double error_threshold<half                         , mtk::wmma::op_without_error_correction> = 1e-2;
+template <>
+constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction> = 1e-2;
+
 template <unsigned N, class T, class A_Layout, class B_Layout, class Policy>
 __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr, const nvcuda::wmma::layout_t cd_layout) {
 	constexpr unsigned LD = N;
@@ -112,7 +123,7 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 	}
 
 	std::printf(
-			"[Type:%5s, N:%3u, A_Layout:%10s, B_Layout:%10s, C_Layout:%10s, Policy<%7s,%9s,%2u,%2u,%2u>, AddC:%3s] max_error: %e\n",
+			"[Type:%5s, N:%3u, A_Layout:%10s, B_Layout:%10s, C_Layout:%10s, Policy<%7s,%9s,%2u,%2u,%2u>, AddC:%3s] max_error: %e (%6s)\n",
 			mtk::test_utils::to_string<T>().c_str(),
 			N,
 			mtk::test_utils::to_string<A_Layout>().c_str(),
@@ -124,7 +135,8 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 			Policy::n,
 			Policy::k,
 			(AddC ? "Yes" : "No"),
-			max_error
+			max_error,
+			(max_error < error_threshold<T, typename Policy::error_correction> ? "PASSED" : "FAILED")
 			);
 
 	cudaFreeHost(hA);
