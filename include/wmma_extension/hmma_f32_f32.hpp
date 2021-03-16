@@ -52,6 +52,22 @@ struct fragment_f32 {
 	}
 };
 
+// min m
+template <class Frag>
+struct min_fragment_m;
+template <class Use, int m, int n, int k, class T, class Layout, class Op, class ErrorCorrection, int fn, int fm, int fk>
+struct min_fragment_m<fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, ErrorCorrection, fm, fn, fk>>> {static const unsigned value = fm;};
+// min n
+template <class Frag>
+struct min_fragment_n;
+template <class Use, int m, int n, int k, class T, class Layout, class Op, class ErrorCorrection, int fn, int fm, int fk>
+struct min_fragment_n<fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, ErrorCorrection, fm, fn, fk>>> {static const unsigned value = fn;};
+// min k
+template <class Frag>
+struct min_fragment_k;
+template <class Use, int m, int n, int k, class T, class Layout, class Op, class ErrorCorrection, int fn, int fm, int fk>
+struct min_fragment_k<fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, ErrorCorrection, fm, fn, fk>>> {static const unsigned value = fk;};
+
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void fill_fragment(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>>& frag, const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::detail::sub_frag_t<Use, T>::type>::type v) {
 	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>;
