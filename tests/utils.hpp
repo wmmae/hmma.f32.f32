@@ -24,21 +24,6 @@ template <> std::string to_string<float>                        (){return "float
 template <> std::string to_string<half>                         (){return "half";}
 template <> std::string to_string<nvcuda::wmma::precision::tf32>(){return "tf32";}
 
-template <bool Cor, class Use, unsigned m, unsigned n, unsigned k, class T, class Layout = void>
-struct select_fragemnt {
-	using type = void;
-};
-
-template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
-struct select_fragemnt<true , Use, m, n, k, T, Layout> {
-	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout, typename mtk::wmma::detail::default_policy<T, mtk::wmma::op_with_error_correction>::type>;
-};
-
-template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
-struct select_fragemnt<false, Use, m, n, k, T, Layout> {
-	using type = typename fragment_f32_namespace::wmma::fragment_f32<Use, m, n, k, T, Layout, typename mtk::wmma::detail::default_policy<T, mtk::wmma::op_without_error_correction>::type>;
-};
-
 
 constexpr unsigned warp_size = 32;
 
