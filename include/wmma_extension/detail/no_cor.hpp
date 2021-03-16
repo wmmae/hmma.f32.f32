@@ -82,9 +82,9 @@ __device__ void load_matrix_sync(fragment_f32<nvcuda::wmma::accumulator, m, n, k
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void load_matrix_sync(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
-	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>;
-	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<T>(), 16>();
-	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<T>(), 16, 16>();
+	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_with_error_correction, fm, fn, fk>;
+	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, Policy::m, Policy::k, Policy::m>();
+	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, Policy::k, Policy::n, Policy::n>();
 
 	mtk::wmma::detail::foreach_wrapper<Use, T, Layout, Policy>{}(
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
@@ -95,7 +95,7 @@ __device__ void load_matrix_sync(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
 							const auto frag_index = frag_index_list[i];
-							frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
+							frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
 						}
 					}
 				}
@@ -168,8 +168,8 @@ __device__ void load_vector(fragment_f32<nvcuda::wmma::accumulator, m, n, k, T, 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void load_vector(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>>& frag, const float* const ptr) {
 	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>;
-	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, 16, mtk::wmma::detail::get_fragment_k<T>(), 16>();
-	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, mtk::wmma::detail::get_fragment_k<T>(), 16, 16>();
+	constexpr auto frag_m = mtk::wmma::detail::select_value<Use, Policy::m, Policy::k, Policy::m>();
+	constexpr auto frag_n = mtk::wmma::detail::select_value<Use, Policy::k, Policy::n, Policy::n>();
 
 	constexpr auto num_load_blocks = mtk::wmma::detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>();
 	constexpr auto block_ld        = mtk::wmma::detail::layout_switch<Layout, 1, frag.num_sub_frag_m>();
