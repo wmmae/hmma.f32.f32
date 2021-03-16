@@ -16,16 +16,14 @@ An extension library of WMMA API for single precision matrix operation using Ten
 // nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 sample.cu ...
 #include <wmma_extension/hmma_f32_f32.hpp>
 
-using Policy = typename mtk::wmma::detail::default_policy<half, mtk::wmma::detail::op_with_error_correction, mtk::wmma::detail::op_mma>::type;
-
 template <unsigned N>
 __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
 	__shared__ float smem[N * N];
 	fill_zero(smem, N * N);
 
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major, Policy> frag_a;
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major, Policy> frag_b;
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, half, void, Policy> frag_c, frag_d;
+	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
+	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b;
+	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, half> frag_c, frag_d;
 
 	// Load A
 	// copy_matrix(smem, N, a_ptr, N, N, N);
