@@ -16,14 +16,16 @@ An extension library of WMMA API for single precision matrix operation using Ten
 // nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 sample.cu ...
 #include <wmma_extension/hmma_f32_f32.hpp>
 
+using Policy = typename mtk::wmma::detail::default_policy<half, mtk::wmma::detail::op_with_error_correction, mtk::wmma::detail::op_mma>::type;
+
 template <unsigned N>
 __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
 	__shared__ float smem[N * N];
 	fill_zero(smem, N * N);
 
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
-	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b;
-	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, half> frag_c, frag_d;
+	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major, Policy> frag_a;
+	mtk::wmma::fragment_f32<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major, Policy> frag_b;
+	mtk::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, half, void, Policy> frag_c, frag_d;
 
 	// Load A
 	// copy_matrix(smem, N, a_ptr, N, N, N);
@@ -51,18 +53,25 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 
 ## Fragment
 ```cpp
-template <class Use, int m, int n, int k, class T, class Layout = void>
+template <class Use, int m, int n, int k, class T, class Layout = void, Policy = typename mtk::wmma::detail::default_policy<T>::type>
 struct fragment_f32;
 ```
+
+### Template arguments
 `mtk::wmma::fragment_f32` is a fragment for this computation.
 It contains arrays of `nvcuda::wmma::fragment`.
-- `m`, `n` and `k` have to be a multiple of `mtk::wmma::min_fragment_m<T>`, `mtk::wmma::min_fragmnet_n<T>` and `mtk::wmma::min_fragmnet_k<T>` respectively.
-Currently `mtk::wmma::min_fragment_m<T>` and `mtk::wmma::min_fragmnet_n<T>` are 16 and `mtk::wmma::min_fragmnet_n<T>` is 16 for `T` == `half` and 8 for `T` == `nvcuda::wmma::precision::tf32`.
+- `m`, `n` and `k` have to be a multiple of `Policy::m`, `Policy::n` and `Policy::k` respectively.
+You can get a default policy by `mtk::wmma::detail::default_policy<T>::type`.
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
+- `Policy` is a concept of `mtk::wmma::detail::Policy<Op, ErrorCorrection, fm, fn, fk>`.
+  - `Op` : `mtk::wmma::op_mma` / `mtk::wmma::op_wmma`
+  - `ErrorCorrection` : `mtk::wmma::op_with_error_correction` / `mtk::wmma::op_without_error_correction`
+  - `fm`, `fn`, `fk` is a size of internal fragments.
 
-### Caution
-- `element_type` is `float`, which is same with the argument type of `load_matrix_sync` and `store_matrix_sync`.
+### Member variables/functions
+- Member variable `element_type` is `float`
+- Member function `x(index)` and `dx(index)` return the referrence of a elements.
 
 ## Functions
 - `mtk::wmma::fill_fragment`
@@ -73,42 +82,6 @@ Currently `mtk::wmma::min_fragment_m<T>` and `mtk::wmma::min_fragmnet_n<T>` are 
 - `mtk::wmma::load_vector`
 - `mtk::wmma::store_vector`
 - `mtk::wmma::fill_zero`
-
-## Evaluation of the effect of this correction technique
-To evaluate the effect of this correction technique, this library also provides no correcting fragment.
-To make it easy to use it, you can define and use a helper fragment selector like this.
-
-```cpp
-#include <wmma_extension/hmma_f32_f32.hpp>
-#include <wmma_extension/hmma_f32_f32_no_cor.hpp>
-
-template <bool Cor, class Use, unsigned m, unsigned n, unsigned k, class T, class Layout = void>
-struct select_fragemnt {
-	using type = void;
-};
-
-template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
-struct select_fragemnt<true , Use, m, n, k, T, Layout> {
-	using type = typename mtk::wmma::fragment_f32<Use, m, n, k, T, Layout>;
-};
-
-template <class Use, unsigned m, unsigned n, unsigned k, class T, class Layout>
-struct select_fragemnt<false, Use, m, n, k, T, Layout> {
-	using type = typename mtk::wmma::fragment_f32_no_cor<Use, m, n, k, T, Layout>;
-};
-```
-
-Then use like this.
-
-```cpp
-template <bool Cor>
-void kernel() {
-	typename select_fragemnt<Cor, nvcuda::wmma::matrix_a   , N, N, N, T, nvcuda::wmma::col_major>::type frag_a;
-	typename select_fragemnt<Cor, nvcuda::wmma::matrix_b   , N, N, N, T, nvcuda::wmma::col_major>::type frag_b;
-	typename select_fragemnt<Cor, nvcuda::wmma::accumulator, N, N, N, T>::type frag_c, frag_d;
-	// ...
-}
-```
 
 ## Namespace
 For easy portability, you can use `nvcuda` namespace instead of `mtk` by defining `WMMAE_USE_NVCUDA_NAMESPACE` before including header files.
