@@ -46,20 +46,6 @@ __device__ constexpr int layout_switch() {
 	return b;
 }
 } // detail
-
-template <class T>
-constexpr unsigned min_fragment_m = 0;
-template <class T>
-constexpr unsigned min_fragment_n = 0;
-template <class T>
-constexpr unsigned min_fragment_k = 0;
-
-template <> constexpr unsigned min_fragment_m<half> = 16;
-template <> constexpr unsigned min_fragment_n<half> = 16;
-template <> constexpr unsigned min_fragment_k<half> = 16;
-template <> constexpr unsigned min_fragment_m<nvcuda::wmma::precision::tf32> = 16;
-template <> constexpr unsigned min_fragment_n<nvcuda::wmma::precision::tf32> = 16;
-template <> constexpr unsigned min_fragment_k<nvcuda::wmma::precision::tf32> =  8;
 } // namespace wmma
 } // namespace mtk
 #endif

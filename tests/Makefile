@@ -16,11 +16,11 @@ NVCCFLAGS+=-gencode arch=compute_75,code=sm_75
 NVCCFLAGS+=-gencode arch=compute_70,code=sm_70
 endif
 
-ifeq ($(TEST_TF32), YES)
+ifeq ($(TEST_NVCUDA_NAMESPACE), YES)
 NVCCFLAGS+=-DWMMAE_USE_NVCUDA_NAMESPACE
 endif
 
-TARGET=mma.test elementwise.test vector.test matvec.test min_fragment.test
+TARGET=mma.test elementwise.test vector.test matvec.test
 
 all: $(TARGET)
 
