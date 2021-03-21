@@ -189,6 +189,15 @@ int main() {
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
+
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
 #ifdef TEST_TF32
 	// wmma TF32 test
 	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
