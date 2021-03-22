@@ -67,6 +67,15 @@ You can get a default policy by `mtk::wmma::detail::default_policy<T>::type`.
   - `ErrorCorrection` : `mtk::wmma::op_with_error_correction` / `mtk::wmma::op_without_error_correction`
   - `fm`, `fn`, `fk` is a size of internal fragments.
 
+## Supported fragment
+
+| fm | fn | fk | LayoutA | LayoutB | Type |
+| -- | -- | -- | ------- | ------- | ---- |
+| 16 | 16 | 16 | col/row | col/low | half |
+| 16 | 16 | 16 | col/row | col/low | tf32 |
+| 16 | 8  | 16 | row     | col     | half |
+| 16 | 8  | 8  | row     | col     | half |
+
 ### Member variables/functions
 - Member variable `element_type` is `float`
 - Member function `x(index)` and `dx(index)` return the referrence of a elements.
