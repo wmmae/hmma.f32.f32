@@ -13,14 +13,14 @@ namespace wmma {
 
 namespace detail {
 template <class T>
-__device__ float correction_scale_0(const float v) {return v;}
+__device__ inline float correction_scale_0(const float v) {return v;}
 template <>
-__device__ float correction_scale_0<half>(const float v) {return v * 1024;}
+__device__ inline float correction_scale_0<half>(const float v) {return v * 1024;}
 
 template <class T>
-__device__ float correction_scale_1(const float v) {return v;}
+__device__ inline float correction_scale_1(const float v) {return v;}
 template <>
-__device__ float correction_scale_1<half>(const float v) {return v / 1024;}
+__device__ inline float correction_scale_1<half>(const float v) {return v / 1024;}
 }
 
 template <class Use, int m, int n, int k, class T, class Layout = void,
