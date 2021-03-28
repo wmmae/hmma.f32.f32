@@ -46,10 +46,11 @@ __device__ void fill_fragment(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::d
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void fill_zero(fragment_f32<Use, m, n, k, T, Layout, mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>>& frag) {
+	using sub_frag_t = typename mtk::wmma::detail::sub_frag_t<Use, T>::type;
 	using Policy = mtk::wmma::detail::Policy<Op, mtk::wmma::op_without_error_correction, fm, fn, fk>;
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-			mtk::wmma::detail::fill_zero_wrapper<Use, T, Layout, Policy>{}(frag.sub_frag  [bm + frag.num_sub_frag_m * bn]);
+			mtk::wmma::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_frag  [bm + frag.num_sub_frag_m * bn]);
 		}
 	}
 }
