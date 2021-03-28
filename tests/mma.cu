@@ -50,6 +50,9 @@ __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, co
 	// Store D
 	f32_namespace::wmma::store_matrix_sync(smem, frag_d, LD, cd_layout);
 	mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
+
+	// Test for fill_zero
+	f32_namespace::wmma::fill_zero(frag_d);
 }
 
 template <unsigned N, class T, class A_Layout, class B_Layout, class Policy>
