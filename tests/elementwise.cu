@@ -2,26 +2,20 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include "utils.hpp"
 
-#ifdef WMMAE_USE_NVCUDA_NAMESPACE
-namespace f32_namespace = nvcuda;
-#else
-namespace f32_namespace = mtk;
-#endif
-
 constexpr unsigned warp_size = 32;
 
 template <unsigned N, class T, class Policy>
 __global__ void test_elementwise_kernel(float* const ptr) {
 	__shared__ float smem[N * N];
 
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T, void, Policy> frag;
-	f32_namespace::wmma::fill_fragment(frag, 0.0f);
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, N, N, N, T, void, Policy> frag;
+	mtk::wmma::mma_f32::fill_fragment(frag, 0.0f);
 
 	for (unsigned i = 0; i < frag.num_elements; i++) {
 		frag.x(i) = threadIdx.x * 100 + i;
 	}
 
-	f32_namespace::wmma::store_matrix_sync(smem, frag, N, nvcuda::wmma::mem_col_major);
+	mtk::wmma::mma_f32::store_matrix_sync(smem, frag, N, nvcuda::wmma::mem_col_major);
 
 	for (unsigned i = 0; i < N * N; i += warp_size) {
 		const auto index = i + threadIdx.x;
@@ -35,8 +29,8 @@ void test_elementwise() {
 			__func__,
 			N,
 			mtk::test_utils::to_string<T>().c_str(),
-			std::is_same<typename Policy::op, mtk::wmma::op_wmma>::value ? "op_wmma" : "op_mma",
-			std::is_same<typename Policy::error_correction, mtk::wmma::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
+			std::is_same<typename Policy::op, mtk::wmma::mma_f32::op_wmma>::value ? "op_wmma" : "op_mma",
+			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
 			Policy::k
@@ -56,12 +50,12 @@ void test_elementwise() {
 }
 
 int main() {
-	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type>();
-	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type>();
-	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type>();
-	test_elementwise<32, half                         , typename mtk::wmma::detail::default_policy<half                         , mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::mma_f32::detail::default_policy<half                         , mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::mma_f32::detail::default_policy<half                         , mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::mma_f32::detail::default_policy<half                         , mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_mma >::type>();
+	test_elementwise<32, half                         , typename mtk::wmma::mma_f32::detail::default_policy<half                         , mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_mma >::type>();
 #ifdef TEST_TF32
-	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type>();
-	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type>();
+	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
+	test_elementwise<32, nvcuda::wmma::precision::tf32, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
 #endif
 }

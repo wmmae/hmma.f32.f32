@@ -12,13 +12,13 @@ namespace f32_namespace = mtk;
 template <class T, class ErrorCorrection>
 constexpr double error_threshold = 0.0;
 template <>
-constexpr double error_threshold<half                         , mtk::wmma::op_with_error_correction   > = 1e-5;
+constexpr double error_threshold<half                         , mtk::wmma::mma_f32::op_with_error_correction   > = 1e-5;
 template <>
-constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   > = 1e-5;
+constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   > = 1e-5;
 template <>
-constexpr double error_threshold<half                         , mtk::wmma::op_without_error_correction> = 1e-2;
+constexpr double error_threshold<half                         , mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
 template <>
-constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction> = 1e-2;
+constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
 
 template <unsigned N, class T, class A_Layout, class B_Layout, class Policy>
 __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr, const nvcuda::wmma::layout_t cd_layout) {
@@ -26,33 +26,33 @@ __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, co
 	__shared__ float smem[N * LD];
 	mtk::test_utils::fill_zero(smem, N * LD);
 
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_c, frag_d;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_c, frag_d;
 	// Load A
 	mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
-	f32_namespace::wmma::load_matrix_sync(frag_a, smem, LD);
+	mtk::wmma::mma_f32::load_matrix_sync(frag_a, smem, LD);
 
 	// Load B
 	mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
-	f32_namespace::wmma::load_matrix_sync(frag_b, smem, LD);
+	mtk::wmma::mma_f32::load_matrix_sync(frag_b, smem, LD);
 
 	// Load C
 	mtk::test_utils::copy_matrix(smem, LD, c_ptr, N, N, N);
-	f32_namespace::wmma::load_matrix_sync(frag_c, smem, LD, cd_layout);
+	mtk::wmma::mma_f32::load_matrix_sync(frag_c, smem, LD, cd_layout);
 
 	// Fill D
-	f32_namespace::wmma::fill_fragment(frag_d, 0.0f);
+	mtk::wmma::mma_f32::fill_fragment(frag_d, 0.0f);
 
 	// mma
-	f32_namespace::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
+	mtk::wmma::mma_f32::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
 	// Store D
-	f32_namespace::wmma::store_matrix_sync(smem, frag_d, LD, cd_layout);
+	mtk::wmma::mma_f32::store_matrix_sync(smem, frag_d, LD, cd_layout);
 	mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
 
 	// Test for fill_zero
-	f32_namespace::wmma::fill_zero(frag_d);
+	mtk::wmma::mma_f32::fill_zero(frag_d);
 }
 
 template <unsigned N, class T, class A_Layout, class B_Layout, class Policy>
@@ -61,22 +61,22 @@ __global__ void mma_kernel_abd(float* const d_ptr, const float* const a_ptr, con
 	__shared__ float smem[N * LD];
 	mtk::test_utils::fill_zero(smem, N * LD);
 
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
-	f32_namespace::wmma::fragment_f32<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_d;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
+	mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_d;
 	// Load A
 	mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
-	f32_namespace::wmma::load_matrix_sync(frag_a, smem, LD);
+	mtk::wmma::mma_f32::load_matrix_sync(frag_a, smem, LD);
 
 	// Load B
 	mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
-	f32_namespace::wmma::load_matrix_sync(frag_b, smem, LD);
+	mtk::wmma::mma_f32::load_matrix_sync(frag_b, smem, LD);
 
 	// mma
-	f32_namespace::wmma::mma_sync(frag_d, frag_a, frag_b);
+	mtk::wmma::mma_f32::mma_sync(frag_d, frag_a, frag_b);
 
 	// Store D
-	f32_namespace::wmma::store_matrix_sync(smem, frag_d, LD, c_layout);
+	mtk::wmma::mma_f32::store_matrix_sync(smem, frag_d, LD, c_layout);
 	mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
 }
 
@@ -132,8 +132,8 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 			mtk::test_utils::to_string<A_Layout>().c_str(),
 			mtk::test_utils::to_string<B_Layout>().c_str(),
 			(cd_layout == nvcuda::wmma::mem_col_major) ? mtk::test_utils::to_string<nvcuda::wmma::col_major>().c_str() : mtk::test_utils::to_string<nvcuda::wmma::row_major>().c_str(),
-			std::is_same<typename Policy::op, mtk::wmma::op_wmma>::value ? "op_wmma" : "op_mma",
-			std::is_same<typename Policy::error_correction, mtk::wmma::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
+			std::is_same<typename Policy::op, mtk::wmma::mma_f32::op_wmma>::value ? "op_wmma" : "op_mma",
+			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
 			Policy::k,
@@ -150,90 +150,90 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 
 int main() {
 	// wmma FP16 test
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
 
 	// mma FP16 test
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_with_error_correction   , mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<half, mtk::wmma::op_without_error_correction, mtk::wmma::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
 
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::detail::Policy<mtk::wmma::op_mma , mtk::wmma::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_with_error_correction   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
 #ifdef TEST_TF32
 	// wmma TF32 test
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_with_error_correction   , mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::op_without_error_correction, mtk::wmma::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
 #endif
 }
