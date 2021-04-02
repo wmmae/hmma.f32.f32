@@ -7,6 +7,7 @@
 
 namespace mtk {
 namespace wmma {
+namespace mma_f32 {
 namespace detail {
 template <class Use, int a, int b, int c>
 __device__ constexpr int select_value() {
@@ -46,6 +47,7 @@ __device__ constexpr int layout_switch() {
 	return b;
 }
 } // detail
+} // mma_f32
 } // namespace wmma
 } // namespace mtk
 #endif

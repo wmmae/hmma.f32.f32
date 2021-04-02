@@ -5,6 +5,8 @@
 namespace mtk {
 namespace wmma {
 
+namespace mma_f32 {
+
 // Instruction policy
 struct op_mma;
 struct op_wmma;
@@ -13,7 +15,6 @@ struct op_wmma;
 struct op_with_error_correction;
 struct op_without_error_correction;
 
-namespace detail {
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
 	using op = Op;
@@ -23,17 +24,18 @@ struct Policy {
 	static const int k = k_;
 };
 
+namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T, class ErrorCorrection = mtk::wmma::op_with_error_correction, class Op = mtk::wmma::op_wmma>
+template <class T, class ErrorCorrection = mtk::wmma::mma_f32::op_with_error_correction, class Op = mtk::wmma::mma_f32::op_wmma>
 struct default_policy;
 template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::op_wmma> {using type = mtk::wmma::detail::Policy<mtk::wmma::op_wmma, ErrorCorrection, 16, 16, 16>;};
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 16>;};
 template <class ErrorCorrection>
-struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::op_wmma> {using type = mtk::wmma::detail::Policy<mtk::wmma::op_wmma, ErrorCorrection, 16, 16, 8 >;};
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 8 >;};
 template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::op_mma > {using type = mtk::wmma::detail::Policy<mtk::wmma::op_mma , ErrorCorrection, 16, 8 , 16>;};
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_mma > {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , ErrorCorrection, 16, 8 , 16>;};
 
 
 // ===================================
@@ -53,6 +55,7 @@ struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn,
 };
 } // namespace detail
 
+} // namespace mma_f32
 } // namespace wmma
 } // namespace mtk
 #endif

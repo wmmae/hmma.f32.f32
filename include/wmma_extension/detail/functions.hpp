@@ -5,13 +5,14 @@
 #include "policy.hpp"
 namespace mtk {
 namespace wmma {
+namespace mma_f32 {
 namespace detail {
 // foreach
 template <class Use, class T, class Layout, class Policy>
 struct foreach_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	template <class Func>
 	__device__ void operator()(Func func) {
 		mtk::wmma::foreach<typename nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>>(
@@ -27,7 +28,7 @@ struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrectio
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	template <class Func>
 	__device__ void operator()(Func func) {
 		mtk::wmma::mma::foreach<typename mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>>(
@@ -47,7 +48,7 @@ template <class Use, class T, class Layout, class Policy>
 struct foreach_v_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	template <class Func>
 	__device__ void operator()(Func func) {
 		mtk::wmma::foreach_v<typename nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>>(
@@ -63,7 +64,7 @@ struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrect
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	template <class Func>
 	__device__ void operator()(Func func) {
 		mtk::wmma::mma::foreach_v<typename mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>>(
@@ -83,14 +84,14 @@ template <class Use, class T, class Layout, class Policy>
 struct fill_zero_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct fill_zero_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct fill_zero_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>& frag) {
 		mtk::wmma::fill_zero(frag);
 	}
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct fill_zero_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct fill_zero_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>& frag) {
 		mtk::wmma::mma::fill_zero(frag);
 	}
@@ -101,7 +102,7 @@ template <class Use, class T, class Layout, class Policy>
 struct load_matrix_sync_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct load_matrix_sync_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct load_matrix_sync_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>& frag, const float* const ptr, unsigned ldm, const nvcuda::wmma::layout_t layout) {
 		nvcuda::wmma::load_matrix_sync(frag, ptr, ldm, layout);
 	}
@@ -111,7 +112,7 @@ struct load_matrix_sync_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, Error
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct load_matrix_sync_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct load_matrix_sync_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::mma::load_matrix_sync(frag, ptr, ldm, layout);
 	}
@@ -125,14 +126,14 @@ template <class T, class Policy>
 struct store_matrix_sync_wrapper;
 
 template <class T, class ErrorCorrection, int fm, int fn, int fk>
-struct store_matrix_sync_wrapper<T, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct store_matrix_sync_wrapper<T, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(float* ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, float>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 		nvcuda::wmma::store_matrix_sync(ptr, frag, ldm, layout);
 	}
 };
 
 template <class T, class ErrorCorrection, int fm, int fn, int fk>
-struct store_matrix_sync_wrapper<T, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct store_matrix_sync_wrapper<T, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(float* ptr, mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, float>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::mma::store_matrix_sync(ptr, frag, ldm, layout);
 	}
@@ -143,7 +144,7 @@ template <class Use, class T, class Layout, class Policy>
 struct load_vector_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct load_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct load_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::load_vector(frag, ptr, layout);
 	}
@@ -153,7 +154,7 @@ struct load_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorre
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct load_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct load_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::mma::load_vector(frag, ptr, layout);
 	}
@@ -167,14 +168,14 @@ template <class Use, class T, class Layout, class Policy>
 struct store_vector_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct store_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct store_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(float* ptr, nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>& frag, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::store_vector(ptr, frag, layout);
 	}
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
-struct store_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct store_vector_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	__device__ void operator()(float* ptr, mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>& frag, const nvcuda::wmma::layout_t layout) {
 		mtk::wmma::mma::store_vector(ptr, frag, layout);
 	}
@@ -185,14 +186,14 @@ template <class Use, class T, class Layout, class Policy, class VT>
 struct fill_fragment_wrapper;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk, class VT>
-struct fill_fragment_wrapper<Use, T, Layout, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>, VT> {
+struct fill_fragment_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>, VT> {
 	__device__ void operator()(nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>& frag, const VT v) {
 		nvcuda::wmma::fill_fragment(frag, v);
 	}
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk, class VT>
-struct fill_fragment_wrapper<Use, T, Layout, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>, VT> {
+struct fill_fragment_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>, VT> {
 	__device__ void operator()(mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>& frag, const VT v) {
 		mtk::wmma::mma::fill_fragment(frag, v);
 	}
@@ -203,7 +204,7 @@ template <class AB_T, class A_Layout, class B_Layout, class CD_T, class Policy>
 struct mma_sync_wrapper;
 
 template <class AB_T, class A_Layout, class B_Layout, class CD_T, class ErrorCorrection, int fm, int fn, int fk>
-struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::op_wmma, ErrorCorrection, fm, fn, fk>> {
+struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, fm, fn, fk>> {
 	using Fragment_A = nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, fm, fn, fk, AB_T, A_Layout>;
 	using Fragment_B = nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, fm, fn, fk, AB_T, B_Layout>;
 	using Fragment_C = nvcuda::wmma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, CD_T>;
@@ -213,7 +214,7 @@ struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::op_wmm
 };
 
 template <class AB_T, class A_Layout, class B_Layout, class CD_T, class ErrorCorrection, int fm, int fn, int fk>
-struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::op_mma, ErrorCorrection, fm, fn, fk>> {
+struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::mma_f32::op_mma, ErrorCorrection, fm, fn, fk>> {
 	using Fragment_A = mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, fm, fn, fk, AB_T, A_Layout>;
 	using Fragment_B = mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, fm, fn, fk, AB_T, B_Layout>;
 	using Fragment_C = mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, fm, fn, fk, CD_T>;
@@ -223,6 +224,7 @@ struct mma_sync_wrapper<AB_T, A_Layout, B_Layout, CD_T, Policy<mtk::wmma::op_mma
 };
 
 } // namespace detail
+} // namespace mma_f32
 } // namespace wmma
 } // namespace mtk
 #endif
