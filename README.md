@@ -71,8 +71,8 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
 
 | fm | fn | fk | LayoutA | LayoutB | Type |
 | -- | -- | -- | ------- | ------- | ---- |
-| 16 | 16 | 16 | col/row | col/low | half |
-| 16 | 16 | 16 | col/row | col/low | tf32 |
+| 16 | 16 | 16 | col/row | col/row | half |
+| 16 | 16 | 16 | col/row | col/row | tf32 |
 | 16 | 8  | 16 | row     | col     | half |
 | 16 | 8  | 8  | row     | col     | half |
 
