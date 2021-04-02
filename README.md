@@ -2,6 +2,10 @@
 
 An extension library of WMMA API for single precision matrix operation using TensorCores and error correction technique
 
+## Correction tequnique
+See this slide page 9 [slide](https://static.momo86.net/f/1/cse21-slide)  
+Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE'21
+
 ## Requirements
 - CUDA
   - CUDA >= 10.0 for HMMA-FP16
