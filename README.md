@@ -13,11 +13,32 @@ Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE
 
 - C++ >= 17
 
+## Installation and build
+This library dependes on [wmma_extension](https://github.com/wmmae/wmma_extension) library.
+
+1. Clone [wmma_extension](https://github.com/wmmae/wmma_extension) and [mma.f32.f32](https://github.com/wmmae/mma.f32.f32).
+```bash
+git clone https://github.com/wmmae/wmma_extension
+git clone https://github.com/wmmae/mma.f32.f32
+```
+
+2. Build
+```bash
+nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -std=c++17 sample.cu ...
+```
+
+When you can't set `-I` options, include headers like blow.
+```cuda
+#include "path/to/wmma_extension/include/wmma_extension/wmma_extension.hpp"
+#include "path/to/wmma_extension/include/wmma_extension/wmma_mma.hpp"
+#define WMMAE_NOT_INCLUDE_WMMAE_HEADER
+#include "path/to/mma.f32.f32/include/wmma_extension/hmma_f32_f32.hpp"
+```
+
 ## Sample code
 ```cuda
 // sample.cu
-// - Build
-// nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 sample.cu ...
+//
 #include <wmma_extension/hmma_f32_f32.hpp>
 
 template <unsigned N>
