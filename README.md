@@ -3,7 +3,7 @@
 An extension library of WMMA API for single precision matrix operation using TensorCores and error correction technique
 
 ## Correction tequnique
-See this slide page 9 [slide](https://static.momo86.net/f/1/cse21-slide)  
+See this slide page 9 [[slide](https://static.momo86.net/f/1/cse21-slide)].  
 Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE'21
 
 ## Requirements
@@ -13,11 +13,33 @@ Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE
 
 - C++ >= 17
 
+## Installation and build
+This library dependes on [wmma_extension](https://github.com/wmmae/wmma_extension) library.
+
+1. Clone [wmma_extension](https://github.com/wmmae/wmma_extension) and [mma.f32.f32](https://github.com/wmmae/mma.f32.f32).
+```bash
+git clone https://github.com/wmmae/wmma_extension
+git clone https://github.com/wmmae/mma.f32.f32
+```
+
+2. Build
+```bash
+nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -std=c++17 sample.cu ...
+```
+
+When you can't set `-I` options, include headers like blow.
+Include wmma_extention headers and define `WMMAE_NOT_INCLUDE_WMMAE_HEADER` before including hmma_f32_f32.hpp.
+```cuda
+#include "path/to/wmma_extension/include/wmma_extension/wmma_extension.hpp"
+#include "path/to/wmma_extension/include/wmma_extension/wmma_mma.hpp"
+#define WMMAE_NOT_INCLUDE_WMMAE_HEADER
+#include "path/to/mma.f32.f32/include/wmma_extension/hmma_f32_f32.hpp"
+```
+
 ## Sample code
 ```cuda
 // sample.cu
-// - Build
-// nvcc -I/path/to/hmma.f32.f32.f32/include/ -std=c++17 sample.cu ...
+//
 #include <wmma_extension/hmma_f32_f32.hpp>
 
 template <unsigned N>
@@ -73,12 +95,12 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
 
 ## Supported fragment
 
-| fm | fn | fk | LayoutA | LayoutB | Type |
-| -- | -- | -- | ------- | ------- | ---- |
-| 16 | 16 | 16 | col/row | col/row | half |
-| 16 | 16 | 16 | col/row | col/row | tf32 |
-| 16 | 8  | 16 | row     | col     | half |
-| 16 | 8  | 8  | row     | col     | half |
+| fm | fn | fk | LayoutA | LayoutB | Type | Operation      | Supported arch |
+| -- | -- | -- | ------- | ------- | ---- | -------------- | ---------------|
+| 16 | 16 | 16 | col/row | col/row | half | Arch dependent | sm_70 or later |
+| 16 | 16 | 16 | col/row | col/row | tf32 | mma            | sm_80 or later |
+| 16 | 8  | 8  | row     | col     | half | mma            | sm_75 or later |
+| 16 | 8  | 16 | row     | col     | half | mma            | sm_80 or later |
 
 ### Member variables/functions
 - Member variable `element_type` is `float`

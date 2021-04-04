@@ -3,7 +3,7 @@
 #include <mma.h>
 #include <type_traits>
 #include <cuda_fp16.h>
-#include "wmma_extension/include/wmma_extension/wmma_extension.hpp"
+#include "wmma_extension_include.hpp"
 
 namespace mtk {
 namespace wmma {

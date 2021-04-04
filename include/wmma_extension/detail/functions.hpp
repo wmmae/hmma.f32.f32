@@ -1,7 +1,6 @@
 #ifndef __WMMAE_HMMA_F32_F32_DETAIL_FUNCTIONS_HPP__
 #define __WMMAE_HMMA_F32_F32_DETAIL_FUNCTIONS_HPP__
-#include "wmma_extension/include/wmma_extension/wmma_mma.hpp"
-#include "wmma_extension/include/wmma_extension/wmma_extension.hpp"
+#include "wmma_extension_include.hpp"
 #include "policy.hpp"
 namespace mtk {
 namespace wmma {
