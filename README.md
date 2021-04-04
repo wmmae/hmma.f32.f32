@@ -3,7 +3,7 @@
 An extension library of WMMA API for single precision matrix operation using TensorCores and error correction technique
 
 ## Correction tequnique
-See this slide page 9 [slide](https://static.momo86.net/f/1/cse21-slide)  
+See this slide page 9 [[slide](https://static.momo86.net/f/1/cse21-slide)].  
 Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE'21
 
 ## Requirements
@@ -94,12 +94,12 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
 
 ## Supported fragment
 
-| fm | fn | fk | LayoutA | LayoutB | Type |
-| -- | -- | -- | ------- | ------- | ---- |
-| 16 | 16 | 16 | col/row | col/row | half |
-| 16 | 16 | 16 | col/row | col/row | tf32 |
-| 16 | 8  | 16 | row     | col     | half |
-| 16 | 8  | 8  | row     | col     | half |
+| fm | fn | fk | LayoutA | LayoutB | Type | Operation      | Supported arch |
+| -- | -- | -- | ------- | ------- | ---- | -------------- | ---------------|
+| 16 | 16 | 16 | col/row | col/row | half | Arch dependent | sm_70 or later |
+| 16 | 16 | 16 | col/row | col/row | tf32 | mma            | sm_80 or later |
+| 16 | 8  | 8  | row     | col     | half | mma            | sm_75 or later |
+| 16 | 8  | 16 | row     | col     | half | mma            | sm_80 or later |
 
 ### Member variables/functions
 - Member variable `element_type` is `float`
