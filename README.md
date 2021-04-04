@@ -28,6 +28,7 @@ nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -std=c
 ```
 
 When you can't set `-I` options, include headers like blow.
+Include wmma_extention headers and define `WMMAE_NOT_INCLUDE_WMMAE_HEADER` before including hmma_f32_f32.hpp.
 ```cuda
 #include "path/to/wmma_extension/include/wmma_extension/wmma_extension.hpp"
 #include "path/to/wmma_extension/include/wmma_extension/wmma_mma.hpp"
