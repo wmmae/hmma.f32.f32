@@ -10,14 +10,14 @@ namespace wmma {
 namespace mma_f32 {
 namespace detail {
 template <class Use, int a, int b, int c>
-__device__ constexpr int select_value() {
-	if constexpr (std::is_same<Use, nvcuda::wmma::matrix_a>::value) {
-		return a;
-	} else if constexpr (std::is_same<Use, nvcuda::wmma::matrix_b>::value) {
-		return b;
-	}
-	return c;
-}
+struct select_value {};
+template <int a, int b, int c>
+struct select_value<nvcuda::wmma::matrix_a   , a, b, c> {const static int value = a;};
+template <int a, int b, int c>
+struct select_value<nvcuda::wmma::matrix_b   , a, b, c> {const static int value = b;};
+template <int a, int b, int c>
+struct select_value<nvcuda::wmma::accumulator, a, b, c> {const static int value = c;};
+
 template <class T>
 __device__ constexpr int get_fragment_k() {return 16;};
 template <> __device__ constexpr int get_fragment_k<nvcuda::wmma::precision::tf32>() {return 8 ;}

@@ -4,12 +4,6 @@
 #include <string>
 #include <wmma_extension/hmma_f32_f32.hpp>
 
-#ifdef WMMAE_USE_NVCUDA_NAMESPACE
-namespace fragment_f32_namespace = nvcuda;
-#else
-namespace fragment_f32_namespace = mtk;
-#endif
-
 namespace mtk {
 namespace test_utils {
 
