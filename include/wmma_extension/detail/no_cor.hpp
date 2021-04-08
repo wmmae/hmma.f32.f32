@@ -196,9 +196,9 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
-	constexpr auto num_load_blocks = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>();
-	constexpr auto block_ld        = mtk::wmma::mma_f32::detail::layout_switch<Layout, 1, frag.num_sub_frag_m>();
-	constexpr auto vec_per_block   = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag_m, frag_n>();
+	constexpr auto num_load_blocks = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>::value;
+	constexpr auto block_ld        = mtk::wmma::mma_f32::detail::layout_switch<Layout, 1, frag.num_sub_frag_m>::value;
+	constexpr auto vec_per_block   = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag_m, frag_n>::value;
 
 	mtk::wmma::mma_f32::detail::foreach_v_wrapper<Use, T, Layout, Policy>{}(
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
@@ -220,9 +220,9 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
-	constexpr auto num_load_blocks = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>();
-	constexpr auto block_ld        = mtk::wmma::mma_f32::detail::layout_switch<Layout, 1, frag.num_sub_frag_m>();
-	constexpr auto vec_per_block   = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag_m, frag_n>();
+	constexpr auto num_load_blocks = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag.num_sub_frag_m, frag.num_sub_frag_n>::value;
+	constexpr auto block_ld        = mtk::wmma::mma_f32::detail::layout_switch<Layout, 1, frag.num_sub_frag_m>::value;
+	constexpr auto vec_per_block   = mtk::wmma::mma_f32::detail::layout_switch<Layout, frag_m, frag_n>::value;
 
 	mtk::wmma::mma_f32::detail::foreach_v_wrapper<Use, T, Layout, Policy>{}(
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {

@@ -40,12 +40,11 @@ template <>
 struct sub_frag_t<nvcuda::wmma::accumulator, nvcuda::wmma::precision::tf32> {using type = float;};
 
 template <class Layout, int a, int b>
-__device__ constexpr int layout_switch() {
-	if constexpr (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		return a;
-	}
-	return b;
-}
+struct layout_switch;
+template <int a, int b>
+struct layout_switch<nvcuda::wmma::col_major, a, b> {const static int value = a;};
+template <int a, int b>
+struct layout_switch<nvcuda::wmma::row_major, a, b> {const static int value = b;};
 } // detail
 } // mma_f32
 } // namespace wmma
