@@ -101,7 +101,7 @@ void load_vector_test() {
 		mat_mem[i] = vec_mem[i];
 	}
 
-	if constexpr (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
+	if (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
 		const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
 		load_vector_acc_test_kernel<m, n, k, T, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem, layout);
 	} else {
