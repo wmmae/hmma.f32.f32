@@ -28,7 +28,7 @@ __global__ void load_vector_ab_test_kernel(
 
 	mtk::wmma::mma_f32::load_vector(frag, src_ptr);
 
-	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>();
+	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>::value;
 	mtk::wmma::mma_f32::load_matrix_sync(frag_c, cor_ptr, mem_m);
 
 	float max_error = 0;
@@ -78,8 +78,8 @@ void load_vector_test() {
 			Policy::m,
 			Policy::n,
 			Policy::k);
-	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>();
-	constexpr unsigned mem_n = mtk::wmma::mma_f32::detail::select_value<Use, k, n, n>();
+	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>::value;
+	constexpr unsigned mem_n = mtk::wmma::mma_f32::detail::select_value<Use, k, n, n>::value;
 
 	constexpr auto vec_len = std::is_same<Layout, nvcuda::wmma::col_major>::value ? mem_m : mem_n;
 
@@ -101,7 +101,7 @@ void load_vector_test() {
 		mat_mem[i] = vec_mem[i];
 	}
 
-	if constexpr (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
+	if (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
 		const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
 		load_vector_acc_test_kernel<m, n, k, T, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem, layout);
 	} else {
@@ -143,8 +143,8 @@ void store_vector_test() {
 			Policy::m,
 			Policy::n,
 			Policy::k);
-	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>();
-	constexpr unsigned mem_n = mtk::wmma::mma_f32::detail::select_value<Use, k, n, n>();
+	constexpr unsigned mem_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>::value;
+	constexpr unsigned mem_n = mtk::wmma::mma_f32::detail::select_value<Use, k, n, n>::value;
 
 	constexpr auto vec_len = std::is_same<Layout, nvcuda::wmma::col_major>::value ? mem_m : mem_n;
 

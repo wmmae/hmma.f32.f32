@@ -11,7 +11,7 @@ Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE
   - CUDA >= 10.0 for HMMA-FP16
   - CUDA >= 11.1 for HMMA-TF32
 
-- C++ >= 17
+- C++ >= 14
 
 ## Installation and build
 This library dependes on [wmma_extension](https://github.com/wmmae/wmma_extension) library.
