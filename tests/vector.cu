@@ -3,12 +3,6 @@
 #include <wmma_extension/hmma_f32_f32.hpp>
 #include "utils.hpp"
 
-#ifdef WMMAE_USE_NVCUDA_NAMESPACE
-namespace f32_namespace = nvcuda;
-#else
-namespace f32_namespace = mtk;
-#endif
-
 __device__ half abs(const half a) {
 	if (__half2float(a) < 0) {
 		return -a;

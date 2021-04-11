@@ -3,12 +3,6 @@
 #include "utils.hpp"
 #include <wmma_extension/hmma_f32_f32.hpp>
 
-#ifdef WMMAE_USE_NVCUDA_NAMESPACE
-namespace f32_namespace = nvcuda;
-#else
-namespace f32_namespace = mtk;
-#endif
-
 template <class T, class ErrorCorrection>
 constexpr double error_threshold = 0.0;
 template <>
