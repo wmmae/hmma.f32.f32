@@ -66,6 +66,20 @@ __global__ void load_vector_acc_test_kernel(
 }
 
 template <class Use, int m, int n, int k, class T, class Layout, class Policy>
+struct test_switch {
+	void operator()(float* const mat_mem, float* const vec_mem) {
+		load_vector_ab_test_kernel<Use, m, n, k, T, Layout, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem);
+	}
+};
+template <int m, int n, int k, class T, class Layout, class Policy>
+struct test_switch<nvcuda::wmma::accumulator, m, n, k, T, Layout, Policy> {
+	void operator()(float* const mat_mem, float* const vec_mem) {
+		const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
+		load_vector_acc_test_kernel<m, n, k, T, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem, layout);
+	}
+};
+
+template <class Use, int m, int n, int k, class T, class Layout, class Policy>
 void load_vector_test() {
 	std::printf("!-- %s\n", __func__);
 	std::printf("Use    : %s\n", mtk::test_utils::to_string<Use>().c_str());
@@ -101,12 +115,8 @@ void load_vector_test() {
 		mat_mem[i] = vec_mem[i];
 	}
 
-	if (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
-		const auto layout = (std::is_same<nvcuda::wmma::col_major, Layout>::value) ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major;
-		load_vector_acc_test_kernel<m, n, k, T, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem, layout);
-	} else {
-		load_vector_ab_test_kernel<Use, m, n, k, T, Layout, Policy><<<1, mtk::test_utils::warp_size>>>(mat_mem, vec_mem);
-	}
+	test_switch<Use, m, n, k, T, Layout, Policy> test;
+	test(mat_mem, vec_mem);
 
 	cudaDeviceSynchronize();
 
