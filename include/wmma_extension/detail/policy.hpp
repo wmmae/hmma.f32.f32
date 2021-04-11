@@ -1,7 +1,8 @@
 #ifndef __WMMAE_HMMA_F32_F32_DETAIL_POLICY_HPP__
 #define __WMMAE_HMMA_F32_F32_DETAIL_POLICY_HPP__
 #include <mma.h>
-#include "wmma_extension/include/wmma_extension/wmma_mma.hpp"
+#include "wmma_extension_include.hpp"
+
 namespace mtk {
 namespace wmma {
 
