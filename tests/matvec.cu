@@ -12,6 +12,8 @@ template <>
 constexpr double error_threshold<half                         , mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
 template <>
 constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
+template <>
+constexpr double error_threshold<float                        , mtk::wmma::mma_f32::op_without_error_correction> = 1e-6;
 
 template <unsigned N, class T, class Policy>
 __global__ void matvec_kernel(float* const y_ptr, const float* const a_ptr, const float* const x_ptr) {
@@ -74,7 +76,7 @@ void test_matvec() {
 			"[Type:%5s, N:%3u, Policy<%7s,%9s,%2u,%2u,%2u>] max_error: %e (%6s)\n",
 			mtk::test_utils::to_string<T>().c_str(),
 			N,
-			std::is_same<typename Policy::op, mtk::wmma::mma_f32::op_wmma>::value ? "op_wmma" : "op_mma",
+			mtk::test_utils::to_string<typename Policy::op>().c_str(),
 			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
@@ -92,6 +94,11 @@ int main() {
 	// wmma FP16 test
 	test_matvec<32, half, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
 	test_matvec<32, half, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
+
+#ifdef TEST_SIMT
+	// simt test
+	test_matvec<32, float, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
+#endif
 
 #ifdef TEST_TF32
 	// wmma TF32 test
