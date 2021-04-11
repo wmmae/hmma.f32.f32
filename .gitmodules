@@ -1,3 +1,6 @@
 [submodule "tests/wmma_extension"]
 	path = tests/wmma_extension
 	url = https://github.com/wmmae/wmma_extension
+[submodule "tests/mma.simt"]
+	path = tests/mma.simt
+	url = https://github.com/wmmae/mma.simt
