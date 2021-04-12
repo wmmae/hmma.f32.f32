@@ -3,8 +3,9 @@ NVCC=nvcc
 INCDIR=../include
 
 TEST_TF32=YES
+TEST_SIMT=YES
 
-NVCCFLAGS=-std=c++14 -I$(INCDIR) -I./wmma_extension/include -Xcompiler="-fopenmp" --ptxas-options=-v
+NVCCFLAGS=-std=c++14 -I$(INCDIR) -I./mma.simt/include -I./wmma_extension/include -Xcompiler="-fopenmp" --ptxas-options=-v
 NVCCFLAGS+=-gencode arch=compute_86,code=sm_86
 NVCCFLAGS+=-gencode arch=compute_80,code=sm_80
 
@@ -13,6 +14,10 @@ NVCCFLAGS+=-DTEST_TF32
 else
 NVCCFLAGS+=-gencode arch=compute_75,code=sm_75
 NVCCFLAGS+=-gencode arch=compute_70,code=sm_70
+endif
+
+ifeq ($(TEST_SIMT), YES)
+NVCCFLAGS+=-DTEST_SIMT
 endif
 
 TARGET=mma.test elementwise.test vector.test matvec.test

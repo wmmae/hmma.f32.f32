@@ -2,11 +2,8 @@
 #include <random>
 #include "utils.hpp"
 #include <wmma_extension/hmma_f32_f32.hpp>
-
-#ifdef WMMAE_USE_NVCUDA_NAMESPACE
-namespace f32_namespace = nvcuda;
-#else
-namespace f32_namespace = mtk;
+#ifdef TEST_SIMT
+#include <wmma_extension/hmma_f32_f32_no_tc.hpp>
 #endif
 
 template <class T, class ErrorCorrection>
@@ -19,6 +16,8 @@ template <>
 constexpr double error_threshold<half                         , mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
 template <>
 constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction> = 1e-2;
+template <>
+constexpr double error_threshold<float                        , mtk::wmma::mma_f32::op_without_error_correction> = 1e-6;
 
 template <unsigned N, class T, class A_Layout, class B_Layout, class Policy>
 __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr, const nvcuda::wmma::layout_t cd_layout) {
@@ -132,7 +131,7 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 			mtk::test_utils::to_string<A_Layout>().c_str(),
 			mtk::test_utils::to_string<B_Layout>().c_str(),
 			(cd_layout == nvcuda::wmma::mem_col_major) ? mtk::test_utils::to_string<nvcuda::wmma::col_major>().c_str() : mtk::test_utils::to_string<nvcuda::wmma::row_major>().c_str(),
-			std::is_same<typename Policy::op, mtk::wmma::mma_f32::op_wmma>::value ? "op_wmma" : "op_mma",
+			mtk::test_utils::to_string<typename Policy::op>().c_str(),
 			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
@@ -201,6 +200,24 @@ int main() {
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_with_error_correction   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
 	test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , mtk::wmma::mma_f32::op_without_error_correction, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
+#ifdef TEST_SIMT
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
+	test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
+#endif
 #ifdef TEST_TF32
 	// wmma TF32 test
 	test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);

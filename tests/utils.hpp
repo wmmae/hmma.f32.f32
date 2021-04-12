@@ -3,6 +3,9 @@
 #include <cuda_fp16.h>
 #include <string>
 #include <wmma_extension/hmma_f32_f32.hpp>
+#ifdef TEST_SIMT
+#include <wmma_extension/hmma_f32_f32_no_tc.hpp>
+#endif
 
 namespace mtk {
 namespace test_utils {
@@ -17,6 +20,11 @@ template <> std::string to_string<nvcuda::wmma::row_major>      (){return "row_m
 template <> std::string to_string<float>                        (){return "float";}
 template <> std::string to_string<half>                         (){return "half";}
 template <> std::string to_string<nvcuda::wmma::precision::tf32>(){return "tf32";}
+template <> std::string to_string<mtk::wmma::mma_f32::op_wmma  >(){return "op_wmma";}
+template <> std::string to_string<mtk::wmma::mma_f32::op_mma   >(){return "op_mma";}
+#ifdef TEST_SIMT
+template <> std::string to_string<mtk::wmma::mma_f32::op_simt  >(){return "op_simt";}
+#endif
 
 
 constexpr unsigned warp_size = 32;

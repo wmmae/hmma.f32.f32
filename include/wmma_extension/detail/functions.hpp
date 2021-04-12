@@ -36,7 +36,7 @@ struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, ErrorC
 	}
 	template <class Func>
 	__device__ void operator()(const nvcuda::wmma::layout_t layout, Func func) {
-		mtk::wmma::mma::foreach<typename nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>>(
+		mtk::wmma::mma::foreach<typename mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>>(
 				layout, func
 				);
 	}
@@ -72,7 +72,7 @@ struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_mma, Erro
 	}
 	template <class Func>
 	__device__ void operator()(const nvcuda::wmma::layout_t layout, Func func) {
-		mtk::wmma::mma::foreach_v<typename nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>>(
+		mtk::wmma::mma::foreach_v<typename mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>>(
 				layout, func
 				);
 	}
