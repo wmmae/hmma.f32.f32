@@ -27,7 +27,7 @@ git clone https://github.com/wmmae/mma.f32.f32
 nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -std=c++17 sample.cu ...
 ```
 
-When you can't set `-I` options, include headers like blow.
+If you can't set `-I` options, include headers like blow.
 Include wmma_extention headers and define `WMMAE_NOT_INCLUDE_WMMAE_HEADER` before including hmma_f32_f32.hpp.
 ```cuda
 #include "path/to/wmma_extension/include/wmma_extension/wmma_extension.hpp"
@@ -93,14 +93,20 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
   - `ErrorCorrection` : `mtk::wmma::mma_f32::op_with_error_correction` / `mtk::wmma::mma_f32::op_without_error_correction`
   - `fm`, `fn`, `fk` is a size of internal fragments.
 
+### Policy
+`default_policy` can make `Policy` easily.
+```cuda
+using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
+```
+
 ## Supported fragment
 
-| fm | fn | fk | LayoutA | LayoutB | Type | Operation      | Supported arch |
-| -- | -- | -- | ------- | ------- | ---- | -------------- | ---------------|
-| 16 | 16 | 16 | col/row | col/row | half | Arch dependent | sm_70 or later |
-| 16 | 16 | 16 | col/row | col/row | tf32 | mma            | sm_80 or later |
-| 16 | 8  | 8  | row     | col     | half | mma            | sm_75 or later |
-| 16 | 8  | 16 | row     | col     | half | mma            | sm_80 or later |
+| fm | fn | fk | LayoutA | LayoutB | Type  | Operation      | Supported arch |
+| -- | -- | -- | ------- | ------- | ----- | -------------- | ---------------|
+| 16 | 16 | 16 | col/row | col/row | half  | Arch dependent | sm_70 or later |
+| 16 | 16 | 16 | col/row | col/row | tf32  | mma            | sm_80 or later |
+| 16 | 8  | 8  | row     | col     | half  | mma            | sm_75 or later |
+| 16 | 8  | 16 | row     | col     | half  | mma            | sm_80 or later |
 
 ### Member variables/functions
 - Member variable `element_type` is `float`
@@ -115,6 +121,41 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
 - `mtk::wmma::mma_f32::load_vector`
 - `mtk::wmma::mma_f32::store_vector`
 - `mtk::wmma::mma_f32::fill_zero`
+
+## SIMT Core computation
+
+This library supports [mma.simt](https://github.com/wmmae/mma.simt) which is a library for computing mma operations using CUDA SIMT Core same API with WMMA API.
+
+| fm | fn | fk | LayoutA | LayoutB | Type  | Operation      | Supported arch |
+| -- | -- | -- | ------- | ------- | ----- | -------------- | ---------------|
+| 16 | 16 | 16 | col/row | col/row | float | simt           | sm_70 or later |
+
+### Usage
+1. Clone [mma.simt](https://github.com/wmmae/mma.simt)
+```bash
+#git clone https://github.com/wmmae/wmma_extension
+#git clone https://github.com/wmmae/mma.f32.f32
+git clone https://github.com/wmmae/mma.simt
+```
+
+2. Build
+```bash
+nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -I./path/to/mma.simt/include/ sample.cu ...
+```
+
+If you can't set `-I` options, include headers like blow.
+Include wmma_extention headers and define `WMMAE_NOT_INCLUDE_WMMAE_SIMT_HEADER` before including hmma_f32_f32_no_tc.hpp.
+```cuda
+#define WMMAE_NOT_INCLUDE_WMMAE_HEADER
+#include "path/to/mma.f32.f32/include/wmma_extension/hmma_f32_f32_no_tc.hpp"
+```
+
+3. Policy
+```cuda
+using simt_policy = typename mtk::wmma::mma_f32::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type;
+
+mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_a, N, N, N, half, nvcuda::wmma::mma_f32::col_major, simt_policy> frag_a;
+```
 
 ## Lisence
 MIT
