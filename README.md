@@ -130,7 +130,6 @@ This library supports [mma.simt](https://github.com/wmmae/mma.simt) which is a l
 | -- | -- | -- | ------- | ------- | ----- | -------------- | ---------------|
 | 16 | 16 | 16 | col/row | col/row | float | simt           | sm_70 or later |
 
-### Usage
 1. Clone [mma.simt](https://github.com/wmmae/mma.simt)
 ```bash
 #git clone https://github.com/wmmae/wmma_extension
@@ -144,8 +143,9 @@ nvcc -I/path/to/hmma.f32.f32/include/ -I./path/to/wmma_extension/include/ -I./pa
 ```
 
 If you can't set `-I` options, include headers like blow.
-Include wmma_extention headers and define `WMMAE_NOT_INCLUDE_WMMAE_SIMT_HEADER` before including hmma_f32_f32_no_tc.hpp.
+Include a mma.simt header and define `WMMAE_NOT_INCLUDE_WMMAE_SIMT_HEADER` before including hmma_f32_f32_no_tc.hpp.
 ```cuda
+#include "path/to/mma.simt/include/wmma_extension/mma_simt.hpp"
 #define WMMAE_NOT_INCLUDE_WMMAE_HEADER
 #include "path/to/mma.f32.f32/include/wmma_extension/hmma_f32_f32_no_tc.hpp"
 ```
