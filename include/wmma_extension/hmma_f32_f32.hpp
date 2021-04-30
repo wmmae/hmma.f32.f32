@@ -172,7 +172,10 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 // [Important!!]
 // `frag` must not be a ref because this function breaks frag.
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>> frag,
+		const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true,
+		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
+		) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -180,7 +183,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 			for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
-				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] += detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]);
+				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] += converter_dc(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]);
 			}
 			unsigned mem_offset;
 			if (layout == nvcuda::wmma::mem_col_major) {
@@ -197,7 +200,10 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 }
 
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>> frag,
+		const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout, const bool sync = true,
+		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
+		) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -205,7 +211,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 			for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
-				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
+				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + converter_dc(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
 			}
 			unsigned mem_offset;
 			if (layout == nvcuda::wmma::mem_col_major) {
@@ -301,7 +307,10 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 
 // Store vector
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag,
+		const nvcuda::wmma::layout_t layout,
+		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
+		) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -315,7 +324,7 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 							const auto frag_index = frag_index_list[i];
 							const auto hv  = frag.sub_frag  [bm].x[frag_index];
 							const auto dhv = frag.sub_d_frag[bm].x[frag_index];
-							ptr[bm * frag_m + mem_index] = (hv + detail::correction_scale_1<T>(dhv));
+							ptr[bm * frag_m + mem_index] = hv + converter_dc(dhv);
 						}
 					}
 				});
@@ -328,7 +337,7 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 							const auto frag_index = frag_index_list[i];
 							const auto hv  = frag.sub_frag  [bn * frag.num_sub_frag_m].x[frag_index];
 							const auto dhv = frag.sub_d_frag[bn * frag.num_sub_frag_m].x[frag_index];
-							ptr[bn * frag_n + mem_index] = (hv + detail::correction_scale_1<T>(dhv));
+							ptr[bn * frag_n + mem_index] = hv + converter_dc(dhv);
 						}
 					}
 				});
@@ -336,7 +345,10 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 }
 
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag,
+		const float mul, const nvcuda::wmma::layout_t layout,
+		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
+		) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -350,7 +362,7 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 							const auto frag_index = frag_index_list[i];
 							const auto hv  = frag.sub_frag  [bm].x[frag_index];
 							const auto dhv = frag.sub_d_frag[bm].x[frag_index];
-							ptr[bm * frag_m + mem_index] = (hv + detail::correction_scale_1<T>(dhv)) * mul;
+							ptr[bm * frag_m + mem_index] = (hv + converter_dc(dhv)) * mul;
 						}
 					}
 				});
@@ -363,7 +375,7 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 							const auto frag_index = frag_index_list[i];
 							const auto hv  = frag.sub_frag  [bn * frag.num_sub_frag_m].x[frag_index];
 							const auto dhv = frag.sub_d_frag[bn * frag.num_sub_frag_m].x[frag_index];
-							ptr[bn * frag_n + mem_index] = (hv + detail::correction_scale_1<T>(dhv)) * mul;
+							ptr[bn * frag_n + mem_index] = (hv + converter_dc(dhv)) * mul;
 						}
 					}
 				});
