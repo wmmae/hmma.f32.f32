@@ -4,6 +4,7 @@
 #include "detail/common.hpp"
 #include "detail/policy_simt.hpp"
 #include "detail/functions_simt.hpp"
+#include "detail/converter.hpp"
 
 namespace mtk {
 namespace wmma {
@@ -82,7 +83,12 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 }
 
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
-__device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
+__device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
+		const float* const ptr, const unsigned ldm, const bool sync = true,
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
+		) {
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -93,7 +99,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
-						const auto hv = mtk::wmma::detail::common::cast<T>(v);
+						const auto hv = converter_a(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
 							const auto frag_index = frag_index_list[i];
 							frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
@@ -107,7 +113,12 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 }
 
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
-__device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const float mul, const bool sync = true) {
+__device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
+		const float* const ptr, const unsigned ldm, const float mul, const bool sync = true,
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
+		) {
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -118,7 +129,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset] * mul;
-						const auto hv = mtk::wmma::detail::common::cast<T>(v);
+						const auto hv = converter_a(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
 							const auto frag_index = frag_index_list[i];
 							frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
