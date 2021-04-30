@@ -76,7 +76,7 @@ __device__ void fill_zero(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::
 
 // Load matrix
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -99,6 +99,9 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 				mtk::wmma::mma_f32::detail::fill_zero_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn]);
 			}
 		}
+	}
+	if (sync) {
+		__syncthreads();
 	}
 }
 
@@ -203,6 +206,9 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 			}
 			mtk::wmma::mma_f32::detail::store_matrix_sync_wrapper<T, Policy>{}(ptr + mem_offset, frag.sub_frag[bm + frag.num_sub_frag_m * bn], ldm, layout);
 		}
+	}
+	if (sync) {
+		__syncthreads();
 	}
 }
 
