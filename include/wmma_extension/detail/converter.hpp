@@ -49,25 +49,25 @@ struct ConvertToFP32_Id : public Converter<float> {
 // ------------------------------
 // A
 template <class T>
-struct default_converter_A;
+struct default_converter_hv;
 
 template <>
-struct default_converter_A<half> {using type = ConvertToFP16;};
+struct default_converter_hv<half> {using type = ConvertToFP16;};
 template <>
-struct default_converter_A<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
+struct default_converter_hv<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
 template <>
-struct default_converter_A<float> {using type = ConvertToFP32_Id;};
+struct default_converter_hv<float> {using type = ConvertToFP32_Id;};
 
 // B
 template <class T>
-struct default_converter_B;
+struct default_converter_dhv;
 
 template <>
-struct default_converter_B<half> {using type = ConvertToFP16_Scale<1024>;};
+struct default_converter_dhv<half> {using type = ConvertToFP16_Scale<1024>;};
 template <>
-struct default_converter_B<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
+struct default_converter_dhv<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
 template <>
-struct default_converter_B<float> {using type = ConvertToFP32_Id;};
+struct default_converter_dhv<float> {using type = ConvertToFP32_Id;};
 } // namespace detail
 } // namespace mma_f32
 } // namespace wmma
