@@ -88,7 +88,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 		const mtk::wmma::mma_f32::detail::Converter<typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type>::type>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
 		) {
 	WMMAE_UNUSE(converter_dhv);
-	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
+	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
@@ -118,7 +118,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 		const mtk::wmma::mma_f32::detail::Converter<typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type>::type>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
 		) {
 	WMMAE_UNUSE(converter_dhv);
-	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
+	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
