@@ -44,47 +44,30 @@ struct ConvertToFP32_Id : public Converter<float> {
 	}
 };
 
-template <int scale>
-struct ConvertToFP32_Scale : public Converter<float> {
-	__device__ float operator()(const float v) const {
-		return v / scale;
-	}
-};
-
 // ------------------------------
 // Default Converter Selector
 // ------------------------------
-// hv
+// A
 template <class T>
-struct default_converter_hv;
+struct default_converter_A;
 
 template <>
-struct default_converter_hv<half> {using type = ConvertToFP16;};
+struct default_converter_A<half> {using type = ConvertToFP16;};
 template <>
-struct default_converter_hv<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
+struct default_converter_A<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
 template <>
-struct default_converter_hv<float> {using type = ConvertToFP32_Id;};
+struct default_converter_A<float> {using type = ConvertToFP32_Id;};
 
-// dhv
+// B
 template <class T>
-struct default_converter_dhv;
+struct default_converter_B;
 
 template <>
-struct default_converter_dhv<half> {using type = ConvertToFP16_Scale<1024>;};
+struct default_converter_B<half> {using type = ConvertToFP16_Scale<1024>;};
 template <>
-struct default_converter_dhv<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
+struct default_converter_B<nvcuda::wmma::precision::tf32> {using type = ConvertToTF32_RNA;};
 template <>
-struct default_converter_dhv<float> {using type = ConvertToFP32_Id;};
-
-template <class T>
-struct default_converter_acc;
-
-template <>
-struct default_converter_acc<half> {using type = ConvertToFP32_Scale<1024>;};
-template <>
-struct default_converter_acc<nvcuda::wmma::precision::tf32> {using type = ConvertToFP32_Id;};
-template <>
-struct default_converter_acc<float> {using type = ConvertToFP32_Id;};
+struct default_converter_B<float> {using type = ConvertToFP32_Id;};
 } // namespace detail
 } // namespace mma_f32
 } // namespace wmma

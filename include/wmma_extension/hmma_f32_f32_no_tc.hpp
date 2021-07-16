@@ -85,10 +85,10 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
 		const float* const ptr, const unsigned ldm, const bool sync = true,
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_hv = typename mtk::wmma::mma_f32::detail::default_converter_hv<T>::type{},
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
 		) {
-	WMMAE_UNUSE(converter_dhv);
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -99,7 +99,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
-						const auto hv = converter_hv(v);
+						const auto hv = converter_a(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
 							const auto frag_index = frag_index_list[i];
 							frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
@@ -115,10 +115,10 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
 		const float* const ptr, const unsigned ldm, const float mul, const bool sync = true,
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_hv = typename mtk::wmma::mma_f32::detail::default_converter_hv<T>::type{},
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
 		) {
-	WMMAE_UNUSE(converter_dhv);
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_with_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -129,7 +129,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
 						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset] * mul;
-						const auto hv = converter_hv(v);
+						const auto hv = converter_a(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
 							const auto frag_index = frag_index_list[i];
 							frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
@@ -144,11 +144,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 
 // Store matrix
 template <int m, int n, int k, class T, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>> frag,
-		const unsigned ldm, const nvcuda::wmma::layout_t layout,
-		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
-		) {
-	WMMAE_UNUSE(converter_dc);
+__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -167,11 +163,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 }
 
 template <int m, int n, int k, class T, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>> frag,
-		const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout,
-		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
-		) {
-	WMMAE_UNUSE(converter_dc);
+__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>> frag, const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -213,10 +205,10 @@ __device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
 __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
 		const float* const ptr,
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_hv = typename mtk::wmma::mma_f32::detail::default_converter_hv<T>::type{},
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
 		) {
-	WMMAE_UNUSE(converter_dhv);
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -230,7 +222,7 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 				for (unsigned bn = 0; bn < num_load_blocks; bn++) {
 					const auto mem_offset = mem_index + bn * vec_per_block;
 					const auto v = ptr[mem_offset];
-					const auto hv = converter_hv(v);
+					const auto hv = converter_a(v);
 					for (unsigned i = 0; i < frag_index_count; i++) {
 						const auto frag_index = frag_index_list[i];
 						frag.sub_frag  [bn * block_ld].x[frag_index] = hv ;
@@ -242,10 +234,10 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 template <class Use, int m, int n, int k, class T, class Layout, int fm, int fn, int fk>
 __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
 		const float* const ptr, const float mul,
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_hv = typename mtk::wmma::mma_f32::detail::default_converter_hv<T>::type{},
-		const mtk::wmma::mma_f32::detail::Converter<T>& converter_dhv = typename mtk::wmma::mma_f32::detail::default_converter_dhv<T>::type{}
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_a = typename mtk::wmma::mma_f32::detail::default_converter_A<T>::type{},
+		const mtk::wmma::mma_f32::detail::Converter<T>& converter_b = typename mtk::wmma::mma_f32::detail::default_converter_B<T>::type{}
 		) {
-	WMMAE_UNUSE(converter_dhv);
+	WMMAE_UNUSE(converter_b);
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
@@ -259,7 +251,7 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 				for (unsigned bn = 0; bn < num_load_blocks; bn++) {
 					const auto mem_offset = mem_index + bn * vec_per_block;
 					const auto v = ptr[mem_offset] * mul;
-					const auto hv = converter_hv(v);
+					const auto hv = converter_a(v);
 					for (unsigned i = 0; i < frag_index_count; i++) {
 						const auto frag_index = frag_index_list[i];
 						frag.sub_frag  [bn * block_ld].x[frag_index] = hv ;
@@ -270,11 +262,7 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32
 
 // Store vector
 template <int m, int n, int k, class T, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
-		const nvcuda::wmma::layout_t layout,
-		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
-		) {
-	WMMAE_UNUSE(converter_dc);
+__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -307,11 +295,7 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 }
 
 template <int m, int n, int k, class T, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag,
-		const float mul, const nvcuda::wmma::layout_t layout,
-		const mtk::wmma::mma_f32::detail::Converter<float>& converter_dc = typename mtk::wmma::mma_f32::detail::default_converter_acc<T>::type{}
-		) {
-	WMMAE_UNUSE(converter_dc);
+__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
