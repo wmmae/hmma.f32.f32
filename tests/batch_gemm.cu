@@ -229,12 +229,13 @@ template <
 	unsigned WARP_N,
 	unsigned WARP_K,
 	unsigned BLOCK_SIZE>
-void test(
+void test_batched_sgemm(
 		const unsigned m,
 		const unsigned n,
 		const unsigned k,
 		const unsigned batch_size
 		) {
+	std::printf("!-- %s\n", __func__);
 	using FRAGMENT_T = half;
 	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
 
@@ -304,9 +305,9 @@ void test(
 
 	std::printf("-------\n");
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
-	std::printf("%15s: %u\n, ", "Batch size", batch_size);
-	std::printf("%15s: %lu byte\n, ", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
-	std::printf("%15s: %e s\n, ", "Time", elapsed_time);
+	std::printf("%15s: %u\n", "Batch size", batch_size);
+	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
+	std::printf("%15s: %e s\n", "Time", elapsed_time);
 	std::printf("%15s: %e TFlop/s\n", "Performance", complexity / elapsed_time / (1lu << 40));
 
 	// Free
@@ -325,5 +326,5 @@ void test(
 } // noname napespace
 
 int main() {
-	test<128, 64, 16, 32, 16, 16, 512>(1024, 1024, 1024, 512);
+	test_batched_sgemm<128, 64, 16, 32, 16, 16, 512>(1024, 1024, 1024, 512);
 }
