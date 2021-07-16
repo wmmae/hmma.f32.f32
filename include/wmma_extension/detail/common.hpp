@@ -5,8 +5,6 @@
 #include <cuda_fp16.h>
 #include "wmma_extension_include.hpp"
 
-#define WMMAE_UNUSE(a) do {(void)(a);} while (0)
-
 namespace mtk {
 namespace wmma {
 namespace mma_f32 {
