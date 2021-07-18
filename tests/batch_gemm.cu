@@ -101,6 +101,47 @@ __device__ void fill_zero(
 	}
 }
 
+template <
+	unsigned SMEM_M,
+	unsigned SMEM_N,
+	unsigned SMEM_K,
+	unsigned WARP_M,
+	unsigned WARP_N,
+	unsigned WARP_K,
+	unsigned BLOCK_SIZE,
+	class FRAGMENT_T,
+	class TC_Policy>
+__device__ void mma_core(
+		float* const c_smem,
+		float* const a_smem,
+		float* const b_smem
+		) {
+	for (unsigned w = 0; w < (SMEM_M * SMEM_N / (WARP_M * WARP_N)); w += BLOCK_SIZE / warp_size) {
+		const auto wi = w + threadIdx.x / warp_size;
+		const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
+		const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
+
+		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
+		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
+		mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
+		for (unsigned wi_k = 0; wi_k < SMEM_K; wi_k += WARP_K) {
+			// Load A
+			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a;
+			const auto a_smem_offset = wi_m * SMEM_K + wi_k;
+			mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K);
+
+			// Load B
+			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b;
+			const auto b_smem_offset = wi_n * SMEM_K + wi_k;
+			mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K);
+
+			// mma
+			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
+		}
+		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major);
+	}
+}
+
 // This kernel function computes batched matrix-matrix multiplication
 // A needs to be row major, and B needst to be col major
 template <
@@ -123,12 +164,15 @@ __global__ void bgemm_kernel(
 		const float beta,
 		float* const* const c_ptr, const unsigned ldc
 		) {
+	constexpr unsigned num_stages = 2;
 	// Sharedm memory
 	extern __shared__ float smem[];
 	float* const a_smem = smem;
-	float* const b_smem = a_smem + SMEM_M * SMEM_K;
-	float* const c_smem = b_smem + SMEM_K * SMEM_N;
-
+	float* const b_smem = a_smem + SMEM_M * SMEM_K * num_stages;
+	float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
+	float* a_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_K};
+	float* b_smem_array[num_stages] = {a_smem, a_smem + SMEM_K * SMEM_N};
+	float* c_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_N};
 	// Device memory
 	float* const c_dmem = c_ptr[blockIdx.x];
 	const float* const a_dmem = a_ptr[blockIdx.x];
@@ -137,48 +181,42 @@ __global__ void bgemm_kernel(
 	for (unsigned bm = 0; bm < m; bm += SMEM_M) {
 		for (unsigned bn = 0; bn < n; bn += SMEM_N) {
 			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
-			for (unsigned bk = 0; bk < k; bk += SMEM_K) {
+			unsigned stage = 0;
+
+			constexpr unsigned bk = 0;
+			// Load A from device memory to shared memory
+			const auto real_bm = min(SMEM_M, m - bm);
+			const auto real_bk = min(SMEM_K, k - bk);
+			const auto a_dmem_offset = bm * lda + bk;
+			dmem2smem<SMEM_M, SMEM_K, BLOCK_SIZE>(a_smem_array[stage], real_bm, real_bk, a_dmem + a_dmem_offset, lda);
+
+			// Load B from global memory to shared memory
+			const auto real_bn = min(SMEM_N, n - bn);
+			const auto b_dmem_offset = bn * ldb + bk;
+			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
+
+			for (unsigned bk = 1; bk < k; bk += SMEM_K) {
+				// MMA
+				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem_array[stage], a_smem_array[stage], b_smem_array[stage]);
+
 				// Load A from device memory to shared memory
 				const auto real_bm = min(SMEM_M, m - bm);
 				const auto real_bk = min(SMEM_K, k - bk);
 				const auto a_dmem_offset = bm * lda + bk;
-				dmem2smem<SMEM_M, SMEM_K, BLOCK_SIZE>(a_smem, real_bm, real_bk, a_dmem + a_dmem_offset, lda);
+				dmem2smem<SMEM_M, SMEM_K, BLOCK_SIZE>(a_smem_array[1 - stage], real_bm, real_bk, a_dmem + a_dmem_offset, lda);
 
 				// Load B from global memory to shared memory
 				const auto real_bn = min(SMEM_N, n - bn);
 				const auto b_dmem_offset = bn * ldb + bk;
-				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
+				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[1 - stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
-				__syncthreads();
-
-				for (unsigned w = 0; w < (SMEM_M * SMEM_N / (WARP_M * WARP_N)); w += BLOCK_SIZE / warp_size) {
-					const auto wi = w + threadIdx.x / warp_size;
-					const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
-					const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
-
-					mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
-					const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-					mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
-					for (unsigned wi_k = 0; wi_k < SMEM_K; wi_k += WARP_K) {
-						// Load A
-						mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a;
-						const auto a_smem_offset = wi_m * SMEM_K + wi_k;
-						mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K);
-
-						// Load B
-						mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b;
-						const auto b_smem_offset = wi_n * SMEM_K + wi_k;
-						mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K);
-
-						// mma
-						mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
-					}
-					mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major);
-				}
+				stage = 1 - stage;
 				__syncthreads();
 			} // loop bk
-			const auto real_bm = min(SMEM_M, m - bm);
-			const auto real_bn = min(SMEM_N, n - bn);
+
+			// MMA
+			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem_array[stage], a_smem_array[stage], b_smem_array[stage]);
+
 			const auto c_dmem_offset = bm + bn * ldc;
 			smem2dmem<SMEM_M, SMEM_N, BLOCK_SIZE>(c_dmem + c_dmem_offset, ldc, real_bm, real_bn, c_smem, alpha, beta);
 		} // loop bn
@@ -207,7 +245,7 @@ void bgemm(
 		const unsigned batch_size
 		) {
 	// Set shared memory size
-	const auto shared_memory_size = (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N) * sizeof(float);
+	const auto shared_memory_size = (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N) * sizeof(float) * 2;
 	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
@@ -326,5 +364,5 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	test_batched_sgemm<128, 64, 16, 32, 16, 16, 512>(1024, 1024, 1024, 512);
+	test_batched_sgemm<128, 64, 16, 64, 16, 16, 256>(1024, 1024, 1024, 512);
 }
