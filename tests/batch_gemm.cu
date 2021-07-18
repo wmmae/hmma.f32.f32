@@ -332,7 +332,7 @@ void test_batched_sgemm(
 			1.f,
 			d_a_ptr_array, m,
 			d_b_ptr_array, n,
-			1.f,
+			0.f,
 			d_c_ptr_array, k,
 			batch_size
 			);
@@ -340,13 +340,51 @@ void test_batched_sgemm(
 	const auto end_clock = std::chrono::system_clock::now();
 	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6;
 	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
+	const auto performance = complexity / elapsed_time / (1lu << 40);
+
 
 	std::printf("-------\n");
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
 	std::printf("%15s: %u\n", "Batch size", batch_size);
 	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
 	std::printf("%15s: %e s\n", "Time", elapsed_time);
-	std::printf("%15s: %e TFlop/s\n", "Performance", complexity / elapsed_time / (1lu << 40));
+	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
+
+	// evaluate the last batch matrix
+	float* last_a_ptr;
+	float* last_b_ptr;
+	float* last_c_ptr;
+	cudaMallocHost(&last_a_ptr, sizeof(float) * m * k);
+	cudaMallocHost(&last_b_ptr, sizeof(float) * k * n);
+	cudaMallocHost(&last_c_ptr, sizeof(float) * m * n);
+	cudaMemcpy(last_a_ptr, h_a_ptr_array[batch_size - 1], sizeof(float) * m * k, cudaMemcpyDefault);
+	cudaMemcpy(last_b_ptr, h_b_ptr_array[batch_size - 1], sizeof(float) * k * n, cudaMemcpyDefault);
+	cudaMemcpy(last_c_ptr, h_c_ptr_array[batch_size - 1], sizeof(float) * m * n, cudaMemcpyDefault);
+	for (unsigned i = 0; i < m; i++) {
+		for (unsigned j = 0; j < n; j++) {
+			std::printf("%+e ", last_c_ptr[i + j * m]);
+		}
+		std::printf("\n");
+	}
+	double base_norm = 0.;
+	double diff_norm = 0.;
+#pragma omp parallel for collapse(2) reduction(+: base_norm) reduction(+: diff_norm)
+	for (unsigned i = 0; i < m; i++) {
+		for (unsigned j = 0; j < n; j++) {
+			double c = 0.;
+			for (unsigned l = 0; l < k; l++) {
+				c += static_cast<double>(last_a_ptr[l + i * k]) * static_cast<double>(last_b_ptr[l + j * k]);
+			}
+			const auto diff = last_c_ptr[i + j * m] - c;
+			const auto base = c;
+			base_norm += base * base;
+			diff_norm += diff * diff;
+		}
+	}
+	cudaFree(last_a_ptr);
+	cudaFree(last_b_ptr);
+	cudaFree(last_c_ptr);
+	std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
 
 	// Free
 	for (unsigned i = 0; i < batch_size; i++) {
