@@ -362,12 +362,6 @@ void test_batched_sgemm(
 	cudaMemcpy(last_a_ptr, h_a_ptr_array[batch_size - 1], sizeof(float) * m * k, cudaMemcpyDefault);
 	cudaMemcpy(last_b_ptr, h_b_ptr_array[batch_size - 1], sizeof(float) * k * n, cudaMemcpyDefault);
 	cudaMemcpy(last_c_ptr, h_c_ptr_array[batch_size - 1], sizeof(float) * m * n, cudaMemcpyDefault);
-	for (unsigned i = 0; i < m; i++) {
-		for (unsigned j = 0; j < n; j++) {
-			std::printf("%+e ", last_c_ptr[i + j * m]);
-		}
-		std::printf("\n");
-	}
 	double base_norm = 0.;
 	double diff_norm = 0.;
 #pragma omp parallel for collapse(2) reduction(+: base_norm) reduction(+: diff_norm)
