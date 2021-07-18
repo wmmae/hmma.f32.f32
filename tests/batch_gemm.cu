@@ -171,8 +171,7 @@ __global__ void bgemm_kernel(
 	float* const b_smem = a_smem + SMEM_M * SMEM_K * num_stages;
 	float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
 	float* a_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_K};
-	float* b_smem_array[num_stages] = {a_smem, a_smem + SMEM_K * SMEM_N};
-	float* c_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_N};
+	float* b_smem_array[num_stages] = {b_smem, b_smem + SMEM_K * SMEM_N};
 	// Device memory
 	float* const c_dmem = c_ptr[blockIdx.x];
 	const float* const a_dmem = a_ptr[blockIdx.x];
@@ -197,15 +196,15 @@ __global__ void bgemm_kernel(
 			// Load col major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
-			for (unsigned bk = 1; bk < k; bk += SMEM_K) {
+			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
 				// MMA
-				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem_array[stage], a_smem_array[stage], b_smem_array[stage]);
+				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem_array[stage], b_smem_array[stage]);
 
 				// Load A from device memory to shared memory
 				const auto real_bm = min(SMEM_M, m - bm);
 				const auto real_bk = min(SMEM_K, k - bk);
 				const auto a_dmem_offset = bm * lda + bk;
-				dmem2smem<SMEM_M, SMEM_K, BLOCK_SIZE>(a_smem_array[1 - stage], real_bm, real_bk, a_dmem + a_dmem_offset, lda);
+				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[1 - stage], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
 				// Load B from global memory to shared memory
 				const auto real_bn = min(SMEM_N, n - bn);
@@ -217,7 +216,7 @@ __global__ void bgemm_kernel(
 			} // loop bk
 
 			// MMA
-			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem_array[stage], a_smem_array[stage], b_smem_array[stage]);
+			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem_array[stage], b_smem_array[stage]);
 
 			const auto c_dmem_offset = bm + bn * ldc;
 			smem2dmem<SMEM_M, SMEM_N, BLOCK_SIZE>(c_dmem + c_dmem_offset, ldc, real_bm, real_bn, c_smem, alpha, beta);
@@ -247,7 +246,7 @@ void bgemm(
 		const unsigned batch_size
 		) {
 	// Set shared memory size
-	const auto shared_memory_size = (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N) * sizeof(float) * 2;
+	const auto shared_memory_size = ((SMEM_M * SMEM_K + SMEM_K * SMEM_N) * 2 + SMEM_M * SMEM_N) * sizeof(float);
 	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
