@@ -188,11 +188,13 @@ __global__ void bgemm_kernel(
 			const auto real_bm = min(SMEM_M, m - bm);
 			const auto real_bk = min(SMEM_K, k - bk);
 			const auto a_dmem_offset = bm * lda + bk;
-			dmem2smem<SMEM_M, SMEM_K, BLOCK_SIZE>(a_smem_array[stage], real_bm, real_bk, a_dmem + a_dmem_offset, lda);
+			// Load row major A using a loader for col major
+			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[stage], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
 			// Load B from global memory to shared memory
 			const auto real_bn = min(SMEM_N, n - bn);
 			const auto b_dmem_offset = bn * ldb + bk;
+			// Load col major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
 			for (unsigned bk = 1; bk < k; bk += SMEM_K) {
