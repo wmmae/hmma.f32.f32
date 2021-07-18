@@ -310,13 +310,13 @@ void test_batched_sgemm(
 
 		// Initialize matrices
 		// A
-		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = 1.f;
+		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(m * k);
 		cudaMemcpy(d_a_ptr, init_matrix, sizeof(float) * m * k, cudaMemcpyDefault);
 		// B
-		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = 1.f;
+		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(k * n);
 		cudaMemcpy(d_b_ptr, init_matrix, sizeof(float) * k * n, cudaMemcpyDefault);
 		// C
-		for (unsigned j = 0; j < m * n; j++) init_matrix[j] = 1.f;
+		for (unsigned j = 0; j < m * n; j++) init_matrix[j] = 0.f;
 		cudaMemcpy(d_c_ptr, init_matrix, sizeof(float) * m * n, cudaMemcpyDefault);
 	}
 	cudaFreeHost(init_matrix);
