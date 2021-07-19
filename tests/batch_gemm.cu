@@ -221,55 +221,52 @@ __global__ void bgemm_kernel(
 	float* const a_smem = smem;
 	float* const b_smem = a_smem + SMEM_M * SMEM_K * num_stages;
 	float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
-	float* a_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_K};
-	float* b_smem_array[num_stages] = {b_smem, b_smem + SMEM_K * SMEM_N};
-	// Device memory
-	float* const c_dmem = c_ptr[blockIdx.x];
-	const float* const a_dmem = a_ptr[blockIdx.x];
-	const float* const b_dmem = b_ptr[blockIdx.x];
+	float* const a_smem_array[num_stages] = {a_smem, a_smem + SMEM_M * SMEM_K};
+	float* const b_smem_array[num_stages] = {b_smem, b_smem + SMEM_K * SMEM_N};
 
-	for (unsigned bm = 0; bm < m; bm += SMEM_M) {
-		for (unsigned bn = 0; bn < n; bn += SMEM_N) {
-			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
-			unsigned stage = 0;
-
-			constexpr unsigned bk = 0;
+	for (unsigned bn = 0; bn < n; bn += SMEM_N) {
+		for (unsigned bm = 0; bm < m; bm += SMEM_M) {
 			// Load A from device memory to shared memory
 			const auto real_bm = min(SMEM_M, m - bm);
-			const auto real_bk = min(SMEM_K, k - bk);
-			const auto a_dmem_offset = bm * lda + bk;
+			const auto real_bk = min(SMEM_K, k);
+			const auto a_dmem_offset = bm * lda;
+			const float* const a_dmem = a_ptr[blockIdx.x];
 			// Load row major A using a loader for col major
-			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[stage], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
+			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[0], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
 			// Load B from global memory to shared memory
 			const auto real_bn = min(SMEM_N, n - bn);
-			const auto b_dmem_offset = bn * ldb + bk;
-			// Load col major A using a loader for col major
-			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
+			const auto b_dmem_offset = bn * ldb;
+			const float* const b_dmem = b_ptr[blockIdx.x];
+			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[0], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
+			//fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
+			unsigned stage = 0;
+#pragma unroll
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
 				// MMA
+				__syncthreads();
 				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem_array[stage], b_smem_array[stage]);
 
+				stage = 1 - stage;
+
 				// Load A from device memory to shared memory
-				const auto real_bm = min(SMEM_M, m - bm);
 				const auto real_bk = min(SMEM_K, k - bk);
 				const auto a_dmem_offset = bm * lda + bk;
-				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[1 - stage], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
+				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem_array[stage], real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
 				// Load B from global memory to shared memory
-				const auto real_bn = min(SMEM_N, n - bn);
 				const auto b_dmem_offset = bn * ldb + bk;
-				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[1 - stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
-
-				stage = 1 - stage;
-				__syncthreads();
+				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem_array[stage], real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 			} // loop bk
 
 			// MMA
+			__syncthreads();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem_array[stage], b_smem_array[stage]);
 
+			__syncthreads();
 			const auto c_dmem_offset = bm + bn * ldc;
+			float* const c_dmem = c_ptr[blockIdx.x];
 			smem2dmem<SMEM_M, SMEM_N, BLOCK_SIZE>(c_dmem + c_dmem_offset, ldc, real_bm, real_bn, c_smem, alpha, beta);
 		} // loop bn
 	} // loop bm
