@@ -375,7 +375,6 @@ void test_batched_sgemm(
 	std::printf("Start evaluation\n");
 
 	cudaDeviceSynchronize();
-	const auto start_clock = std::chrono::system_clock::now();
 	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
@@ -386,18 +385,9 @@ void test_batched_sgemm(
 			batch_size
 			);
 	cudaDeviceSynchronize();
-	const auto end_clock = std::chrono::system_clock::now();
-	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6;
-	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
-	const auto performance = complexity / elapsed_time / (1lu << 40);
 
 
 	std::printf("-------\n");
-	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
-	std::printf("%15s: %u\n", "Batch size", batch_size);
-	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
-	std::printf("%15s: %e s\n", "Time", elapsed_time);
-	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
 
 	// evaluate the last batch matrix
 	float* last_a_ptr;
@@ -427,6 +417,35 @@ void test_batched_sgemm(
 	cudaFree(last_a_ptr);
 	cudaFree(last_b_ptr);
 	cudaFree(last_c_ptr);
+
+	cudaDeviceSynchronize();
+	// evaluation of computing performance
+	constexpr unsigned test_count = 1lu << 2;
+	const auto start_clock = std::chrono::system_clock::now();
+	for (unsigned c = 0; c < test_count; c++) {
+		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
+				m, n, k,
+				1.f,
+				d_a_ptr_array, m,
+				d_b_ptr_array, n,
+				0.f,
+				d_c_ptr_array, k,
+				batch_size
+				);
+	}
+	cudaDeviceSynchronize();
+	const auto end_clock = std::chrono::system_clock::now();
+	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
+	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
+	const auto performance = complexity / elapsed_time / (1lu << 40);
+
+
+	std::printf("-------\n");
+	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
+	std::printf("%15s: %u\n", "Batch size", batch_size);
+	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
+	std::printf("%15s: %e s\n", "Time", elapsed_time);
+	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
 	std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
 
 	// Free
