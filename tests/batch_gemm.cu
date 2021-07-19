@@ -151,29 +151,45 @@ __device__ void mma_core(
 		float* const a_smem,
 		float* const b_smem
 		) {
+#pragma unroll
 	for (unsigned w = 0; w < (SMEM_M * SMEM_N / (WARP_M * WARP_N)); w += BLOCK_SIZE / warp_size) {
 		const auto wi = w + threadIdx.x / warp_size;
 		const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
 		const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
 
+		// Load A
+		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a;
+		const auto a_smem_offset = wi_m * SMEM_K + 0;
+		mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K, false);
+
+		// Load B
+		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b;
+		const auto b_smem_offset = wi_n * SMEM_K + 0;
+		mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K, false);
+
+		// Load C
 		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
 		mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
-		for (unsigned wi_k = 0; wi_k < SMEM_K; wi_k += WARP_K) {
+
+#pragma unroll
+		for (unsigned wi_k = WARP_K; wi_k < SMEM_K; wi_k += WARP_K) {
+			// mma
+			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
+
 			// Load A
 			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a;
 			const auto a_smem_offset = wi_m * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K);
+			mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K, false);
 
 			// Load B
 			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b;
 			const auto b_smem_offset = wi_n * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K);
-
-			// mma
-			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
+			mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K, false);
 		}
-		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major);
+		// mma
+		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
+		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major, false);
 	}
 }
 
