@@ -375,7 +375,6 @@ void test_batched_sgemm(
 	cudaMemcpy(d_a_ptr_array, h_a_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
 	cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
 	cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
-	std::printf("Start evaluation\n");
 
 	cudaDeviceSynchronize();
 	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
@@ -389,8 +388,6 @@ void test_batched_sgemm(
 			);
 	cudaDeviceSynchronize();
 
-
-	std::printf("-------\n");
 
 	// evaluate the last batch matrix
 	float* last_a_ptr;
