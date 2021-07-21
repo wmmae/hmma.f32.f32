@@ -383,10 +383,10 @@ void test_batched_sgemm(
 	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
-			d_a_ptr_array, m,
-			d_b_ptr_array, n,
+			d_a_ptr_array, k,
+			d_b_ptr_array, k,
 			0.f,
-			d_c_ptr_array, k,
+			d_c_ptr_array, m,
 			batch_size
 			);
 	cudaDeviceSynchronize();
@@ -429,8 +429,8 @@ void test_batched_sgemm(
 		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
 				m, n, k,
 				1.f,
-				d_a_ptr_array, m,
-				d_b_ptr_array, n,
+				d_a_ptr_array, k,
+				d_b_ptr_array, k,
 				0.f,
 				d_c_ptr_array, m,
 				batch_size
