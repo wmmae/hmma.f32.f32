@@ -329,6 +329,12 @@ void test_batched_sgemm(
 		const unsigned batch_size
 		) {
 	std::printf("!-- %s\n", __func__);
+	std::printf("-------\n");
+	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
+	std::printf("%15s: %u\n", "Batch size", batch_size);
+	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(2lu * (m * n + n * k + k * m) * sizeof(float)) / (1lu << 30));
+	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
+
 	using FRAGMENT_T = half;
 	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
 
@@ -442,11 +448,6 @@ void test_batched_sgemm(
 	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
 	const auto performance = complexity / elapsed_time / (1lu << 40);
 
-
-	std::printf("-------\n");
-	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
-	std::printf("%15s: %u\n", "Batch size", batch_size);
-	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
 	std::printf("%15s: %e s\n", "Time", elapsed_time);
 	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
 	std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
