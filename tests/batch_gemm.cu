@@ -332,8 +332,9 @@ void test_batched_sgemm(
 	std::printf("-------\n");
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
 	std::printf("%15s: %u\n", "Batch size", batch_size);
-	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(2lu * (m * n + n * k + k * m) * sizeof(float)) / (1lu << 30));
+	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
 	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
+	std::fflush(stdout);
 
 	using FRAGMENT_T = half;
 	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
