@@ -469,5 +469,5 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	test_batched_sgemm<128, 128, 16, 64, 16, 16, 256>(1024, 1024, 1024, 512);
+	test_batched_sgemm<128, 128, 16, 64, 32, 16, 256>(1024, 1024, 8192, 128);
 }
