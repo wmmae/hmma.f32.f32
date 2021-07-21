@@ -432,7 +432,7 @@ void test_batched_sgemm(
 				d_a_ptr_array, m,
 				d_b_ptr_array, n,
 				0.f,
-				d_c_ptr_array, k,
+				d_c_ptr_array, m,
 				batch_size
 				);
 	}
