@@ -13,7 +13,7 @@ __device__ void dmem2smem(
 		const float* const src_dmem, const unsigned ld
 		) {
 	if (m == SMEM_M && n == SMEM_N) {
-		if (SMEM_M & 0b11 == 0) {
+		if ((SMEM_M & 0b11) == 0) {
 			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE * 4) {
 				const auto j = i + threadIdx.x * 4;
 				const auto j_m = j % SMEM_M;
@@ -59,7 +59,7 @@ __device__ void smem2dmem(
 		) {
 	if (beta == 0.f) {
 		if (m == SMEM_M && n == SMEM_N) {
-			if (SMEM_M & 0b11 == 0) {
+			if ((SMEM_M & 0b11) == 0) {
 				for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE * 4) {
 					const auto j = i + threadIdx.x * 4;
 					const auto j_m = j % SMEM_M;
