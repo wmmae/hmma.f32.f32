@@ -13,12 +13,25 @@ __device__ void dmem2smem(
 		const float* const src_dmem, const unsigned ld
 		) {
 	if (m == SMEM_M && n == SMEM_N) {
-		for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
-			const auto j = i + threadIdx.x;
-			const auto j_m = j % SMEM_M;
-			const auto j_n = j / SMEM_M;
+		if ((SMEM_M & 0b11) == 0) {
+			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE * 4) {
+				const auto j = i + threadIdx.x * 4;
+				const auto j_m = j % SMEM_M;
+				const auto j_n = j / SMEM_M;
+				const auto mem_index = j_m + j_n * ld;
 
-			dst_smem[j] = src_dmem[j_m + j_n * ld];
+				const auto tmp_v4 = *reinterpret_cast<const float4*>(&src_dmem[mem_index]);
+
+				*reinterpret_cast<float4*>(&dst_smem[j]) = tmp_v4;
+			}
+		} else {
+			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
+				const auto j = i + threadIdx.x;
+				const auto j_m = j % SMEM_M;
+				const auto j_n = j / SMEM_M;
+
+				dst_smem[j] = src_dmem[j_m + j_n * ld];
+			}
 		}
 	} else {
 		for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
@@ -46,12 +59,34 @@ __device__ void smem2dmem(
 		) {
 	if (beta == 0.f) {
 		if (m == SMEM_M && n == SMEM_N) {
-			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
-				const auto j = i + threadIdx.x;
-				const auto j_m = j % SMEM_M;
-				const auto j_n = j / SMEM_M;
+			if ((SMEM_M & 0b11) == 0) {
+				for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE * 4) {
+					const auto j = i + threadIdx.x * 4;
+					const auto j_m = j % SMEM_M;
+					const auto j_n = j / SMEM_M;
+					const auto mem_index = j_m + j_n * ld;
 
-				dst_dmem[j_m + j_n * ld] = alpha * src_smem[j];
+					auto tmp_v4 = make_float4(
+							src_smem[j + 0],
+							src_smem[j + 1],
+							src_smem[j + 2],
+							src_smem[j + 3]
+							);
+					tmp_v4.x *= alpha;
+					tmp_v4.y *= alpha;
+					tmp_v4.z *= alpha;
+					tmp_v4.w *= alpha;
+
+					*reinterpret_cast<float4*>(&dst_dmem[mem_index]) = tmp_v4;
+				}
+			} else {
+				for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
+					const auto j = i + threadIdx.x;
+					const auto j_m = j % SMEM_M;
+					const auto j_n = j / SMEM_M;
+
+					dst_dmem[j_m + j_n * ld] = alpha * src_smem[j];
+				}
 			}
 		} else {
 			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
@@ -116,29 +151,48 @@ __device__ void mma_core(
 		float* const a_smem,
 		float* const b_smem
 		) {
+#pragma unroll
 	for (unsigned w = 0; w < (SMEM_M * SMEM_N / (WARP_M * WARP_N)); w += BLOCK_SIZE / warp_size) {
 		const auto wi = w + threadIdx.x / warp_size;
-		const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
-		const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
 
+		constexpr unsigned num_stages = 2;
+
+		// Load A
+		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a[num_stages];
+		const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
+		const auto a_smem_offset = wi_m * SMEM_K + 0;
+		mtk::wmma::mma_f32::load_matrix_sync(frag_a[0], a_smem + a_smem_offset, SMEM_K, false);
+
+		// Load B
+		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b[num_stages];
+		const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
+		const auto b_smem_offset = wi_n * SMEM_K + 0;
+		mtk::wmma::mma_f32::load_matrix_sync(frag_b[0], b_smem + b_smem_offset, SMEM_K, false);
+
+		// Load C
 		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
 		mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
-		for (unsigned wi_k = 0; wi_k < SMEM_K; wi_k += WARP_K) {
+
+		unsigned stage = 0;
+#pragma unroll
+		for (unsigned wi_k = WARP_K; wi_k < SMEM_K; wi_k += WARP_K) {
+			// mma
+			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
+
+			stage = 1 - stage;
+
 			// Load A
-			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a;
 			const auto a_smem_offset = wi_m * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_a, a_smem + a_smem_offset, SMEM_K);
+			mtk::wmma::mma_f32::load_matrix_sync(frag_a[stage], a_smem + a_smem_offset, SMEM_K, false);
 
 			// Load B
-			mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b;
 			const auto b_smem_offset = wi_n * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_b, b_smem + b_smem_offset, SMEM_K);
-
-			// mma
-			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a, frag_b, frag_c);
+			mtk::wmma::mma_f32::load_matrix_sync(frag_b[stage], b_smem + b_smem_offset, SMEM_K, false);
 		}
-		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major);
+		// mma
+		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
+		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major, false);
 	}
 }
 
@@ -275,6 +329,13 @@ void test_batched_sgemm(
 		const unsigned batch_size
 		) {
 	std::printf("!-- %s\n", __func__);
+	std::printf("-------\n");
+	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
+	std::printf("%15s: %u\n", "Batch size", batch_size);
+	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
+	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
+	std::fflush(stdout);
+
 	using FRAGMENT_T = half;
 	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
 
@@ -324,32 +385,19 @@ void test_batched_sgemm(
 	cudaMemcpy(d_a_ptr_array, h_a_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
 	cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
 	cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
-	std::printf("Start evaluation\n");
 
 	cudaDeviceSynchronize();
-	const auto start_clock = std::chrono::system_clock::now();
 	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
-			d_a_ptr_array, m,
-			d_b_ptr_array, n,
+			d_a_ptr_array, k,
+			d_b_ptr_array, k,
 			0.f,
-			d_c_ptr_array, k,
+			d_c_ptr_array, m,
 			batch_size
 			);
 	cudaDeviceSynchronize();
-	const auto end_clock = std::chrono::system_clock::now();
-	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6;
-	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
-	const auto performance = complexity / elapsed_time / (1lu << 40);
 
-
-	std::printf("-------\n");
-	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
-	std::printf("%15s: %u\n", "Batch size", batch_size);
-	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
-	std::printf("%15s: %e s\n", "Time", elapsed_time);
-	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
 
 	// evaluate the last batch matrix
 	float* last_a_ptr;
@@ -379,6 +427,30 @@ void test_batched_sgemm(
 	cudaFree(last_a_ptr);
 	cudaFree(last_b_ptr);
 	cudaFree(last_c_ptr);
+
+	cudaDeviceSynchronize();
+	// evaluation of computing performance
+	constexpr unsigned test_count = 1lu << 2;
+	const auto start_clock = std::chrono::system_clock::now();
+	for (unsigned c = 0; c < test_count; c++) {
+		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
+				m, n, k,
+				1.f,
+				d_a_ptr_array, k,
+				d_b_ptr_array, k,
+				0.f,
+				d_c_ptr_array, m,
+				batch_size
+				);
+	}
+	cudaDeviceSynchronize();
+	const auto end_clock = std::chrono::system_clock::now();
+	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
+	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
+	const auto performance = complexity / elapsed_time / (1lu << 40);
+
+	std::printf("%15s: %e s\n", "Time", elapsed_time);
+	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
 	std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
 
 	// Free
@@ -397,5 +469,5 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	test_batched_sgemm<128, 64, 16, 64, 16, 16, 256>(1024, 1024, 1024, 512);
+	test_batched_sgemm<128, 128, 16, 64, 32, 16, 256>(1024, 1024, 8192, 128);
 }
