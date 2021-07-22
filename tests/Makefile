@@ -5,7 +5,7 @@ INCDIR=../include
 TEST_TF32=YES
 TEST_SIMT=YES
 
-NVCCFLAGS=-std=c++14 -I$(INCDIR) -I./mma.simt/include -I./wmma_extension/include -Xcompiler="-fopenmp" --ptxas-options=-v
+NVCCFLAGS=-std=c++14 -I$(INCDIR) -I./mma.simt/include -I./wmma_extension/include -Xcompiler="-fopenmp" --ptxas-options=-v -lcublas
 NVCCFLAGS+=-gencode arch=compute_86,code=sm_86
 NVCCFLAGS+=-gencode arch=compute_80,code=sm_80
 
