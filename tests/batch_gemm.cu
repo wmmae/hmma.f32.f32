@@ -250,6 +250,8 @@ __global__ void bgemm_kernel(
 			float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
 			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
 
+			__syncthreads();
+
 			unsigned stage = 0;
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
 				// MMA
