@@ -1,5 +1,7 @@
 #include <iostream>
 #include <chrono>
+#include <cublas.h>
+#include <cublas_v2.h>
 #include <wmma_extension/hmma_f32_f32.hpp>
 
 namespace {
@@ -434,27 +436,63 @@ void test_batched_sgemm(
 	cudaDeviceSynchronize();
 	// evaluation of computing performance
 	constexpr unsigned test_count = 1lu << 2;
-	const auto start_clock = std::chrono::system_clock::now();
-	for (unsigned c = 0; c < test_count; c++) {
-		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
-				m, n, k,
-				1.f,
-				d_a_ptr_array, k,
-				d_b_ptr_array, k,
-				0.f,
-				d_c_ptr_array, m,
-				batch_size
-				);
-	}
-	cudaDeviceSynchronize();
-	const auto end_clock = std::chrono::system_clock::now();
-	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
-	const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
-	const auto performance = complexity / elapsed_time / (1lu << 40);
 
-	std::printf("%15s: %e s\n", "Time", elapsed_time);
-	std::printf("%15s: %e TFlop/s\n", "Performance", performance);
-	std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
+	{
+		cudaDeviceSynchronize();
+		// evaluation of computing performance
+		const auto start_clock = std::chrono::system_clock::now();
+		for (unsigned c = 0; c < test_count; c++) {
+			bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
+					m, n, k,
+					1.f,
+					d_a_ptr_array, k,
+					d_b_ptr_array, k,
+					0.f,
+					d_c_ptr_array, m,
+					batch_size
+					);
+		}
+		cudaDeviceSynchronize();
+		const auto end_clock = std::chrono::system_clock::now();
+		const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
+		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
+		const auto performance = complexity / elapsed_time / (1lu << 40);
+
+		std::printf("%15s: %e s\n", "Time", elapsed_time);
+		std::printf("%15s: %e TFlop/s\n", "Performance", performance);
+		std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
+	}
+	// cuBLAS
+	{
+		cublasHandle_t cublas_handle;
+		cublasCreate(&cublas_handle);
+		const float alpha = 1.f;
+		const float beta = 0.f;
+		cudaDeviceSynchronize();
+		// evaluation of computing performance
+		const auto start_clock = std::chrono::system_clock::now();
+		for (unsigned c = 0; c < test_count; c++) {
+			cublasSgemmBatched(cublas_handle,
+					CUBLAS_OP_T, CUBLAS_OP_N,
+					m, n, k,
+					&alpha,
+					d_a_ptr_array, k,
+					d_b_ptr_array, k,
+					&beta,
+					d_c_ptr_array, m,
+					batch_size
+					);
+		}
+		cudaDeviceSynchronize();
+		const auto end_clock = std::chrono::system_clock::now();
+		const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
+		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
+		const auto performance = complexity / elapsed_time / (1lu << 40);
+
+		std::printf("%15s: %e s (cuBLAS)\n", "Time", elapsed_time);
+		std::printf("%15s: %e TFlop/s (cuBLAS)\n", "Performance", performance);
+		cublasDestroy(cublas_handle);
+	}
 
 	// Free
 	for (unsigned i = 0; i < batch_size; i++) {
